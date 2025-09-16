@@ -1,0 +1,60 @@
+stages:
+  - build
+  - docker
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: ""  # отключаем TLS
+  REGISTRY: "localhost:5000"
+  IMAGE_NAME: "$REGISTRY/geobudget-backend"
+
+before_script:
+  - echo "🧹 Preparing..."
+
+build:
+  stage: build
+  tags:
+    - docker
+  image: eclipse-temurin:24-jdk
+  before_script:
+    - ./gradlew --version
+  script:
+    - unset DOCKER_HOST
+    - ./gradlew clean bootJar
+  artifacts:
+    paths:
+      - build/libs/*.jar
+
+docker_build_push:
+  stage: docker
+  tags:
+    - docker
+  image: docker:25.0.3
+  services:
+    - docker:25.0.3-dind
+  script:
+    - unset DOCKER_HOST
+    - docker login $REGISTRY || true
+    - docker build -t $IMAGE_NAME:latest .
+    - docker push $IMAGE_NAME:latest
+
+deploy:
+  stage: deploy
+  tags:
+    - docker
+  image: docker:25.0.3
+  services:
+    - docker:25.0.3-dind
+  script:
+    - unset DOCKER_HOST
+    - echo "🚀 Pulling image from local registry..."
+    - docker pull $IMAGE_NAME:latest
+
+    - echo "📂 Switching to compose directory..."
+    - cd $CI_PROJECT_DIR  # если docker-compose.yml лежит в корне проекта
+
+    - echo "🛑 Stopping previous containers..."
+    - docker compose down
+
+    - echo "🔄 Starting new containers..."
+    - docker compose up -d
