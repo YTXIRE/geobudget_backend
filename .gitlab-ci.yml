@@ -41,12 +41,9 @@ docker_build_push:
   tags:
     - docker
   image: docker:25.0.3
-  services:
-    - name: docker:25.0.3-dind
-      alias: docker
+  services: []
   variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+    DOCKER_HOST: "unix:///var/run/docker.sock"
   script:
     - echo "===== 🐳 START DOCKER BUILD ====="
     - docker info
@@ -62,6 +59,10 @@ deploy:
   stage: deploy
   tags:
     - shell
+  image: docker:25.0.3
+  services: []
+  variables:
+    DOCKER_HOST: "unix:///var/run/docker.sock"
   script:
     - echo "===== 🚀 START DEPLOY ====="
     - docker info
