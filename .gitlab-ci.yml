@@ -9,10 +9,13 @@ variables:
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
 
+# -------------------
+# Build stage
+# -------------------
 build:
   stage: build
   tags:
-    - docker
+    - shell
   image: eclipse-temurin:24-jdk
   cache:
     key: gradle-cache
@@ -21,11 +24,8 @@ build:
       - .gradle/caches
   script:
     - echo "===== 🧹 START BUILD STAGE ====="
-    - echo "👉 Проверяем Java..."
     - java -version
-    - echo "👉 Проверяем Gradle Wrapper..."
     - ./gradlew --version
-    - echo "👉 Чистим проект и собираем bootJar..."
     - ./gradlew clean bootJar --stacktrace
     - echo "✅ Сборка завершена, jar создан"
     - echo "===== 🧹 END BUILD STAGE ====="
@@ -33,52 +33,38 @@ build:
     paths:
       - build/libs/*.jar
 
+# -------------------
+# Docker build & push
+# -------------------
 docker_build_push:
   stage: docker
   tags:
-    - docker
+    - shell
   image: docker:25.0.3
-  volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
   script:
-    - echo "===== 🐳 START DOCKER BUILD & PUSH STAGE ====="
-    - echo "DOCKER_HOST=$DOCKER_HOST"
-    - echo "REGISTRY=$REGISTRY"
-    - echo "IMAGE_NAME=$IMAGE_NAME"
-    - echo "COMMIT_TAG=$COMMIT_TAG"
-    - echo "👉 Проверяем доступность Docker..."
+    - echo "===== 🐳 START DOCKER BUILD & PUSH ====="
     - docker info
-    - echo "👉 Логинимся в локальный registry (может пропустить ошибку)..."
     - docker login $REGISTRY || echo "⚠️ Не удалось залогиниться"
-    - echo "👉 Собираем Docker-образ..."
     - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
-    - echo "👉 Пушим Docker-образы..."
     - docker push $IMAGE_NAME:latest
     - docker push $IMAGE_NAME:$COMMIT_TAG
     - echo "✅ Docker image собран и отправлен"
-    - echo "===== 🐳 END DOCKER BUILD & PUSH STAGE ====="
+    - echo "===== 🐳 END DOCKER BUILD & PUSH ====="
 
+# -------------------
+# Deploy stage
+# -------------------
 deploy:
   stage: deploy
   tags:
-    - docker
+    - shell
   image: docker:25.0.3
-  volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
   script:
-    - echo "===== 🚀 START DEPLOY STAGE ====="
-    - echo "DOCKER_HOST=$DOCKER_HOST"
-    - echo "IMAGE_NAME=$IMAGE_NAME"
-    - echo "COMMIT_TAG=$COMMIT_TAG"
-    - echo "👉 Проверяем доступность Docker..."
+    - echo "===== 🚀 START DEPLOY ====="
     - docker info
-    - echo "👉 Тянем образ $IMAGE_NAME:latest"
     - docker pull $IMAGE_NAME:latest
-    - echo "👉 Переходим в директорию проекта..."
     - cd $CI_PROJECT_DIR
-    - echo "👉 Останавливаем предыдущие контейнеры..."
     - docker compose down || echo "⚠️ Не было контейнеров для остановки"
-    - echo "👉 Запускаем новые контейнеры..."
     - docker compose up -d
     - echo "✅ Деплой завершён"
-    - echo "===== 🚀 END DEPLOY STAGE ====="
+    - echo "===== 🚀 END DEPLOY ====="
