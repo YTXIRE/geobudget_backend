@@ -1,0 +1,16 @@
+package com.geobudget.geobudget.config;
+
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "category")
+public class CategoryProperties {
+    private Integer fallbackId = 11;
+}
+
+

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    image: localhost:5000/geobudget-backend:latest
+    ports:
+      - "8180:8180"
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5432/geobudget}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-geouser}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-geopass}
+    restart: always

@@ -15,14 +15,14 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
-git remote add origin http://10.8.0.2/geobudget/backend.git
+git remote add origin http://gitlab.local/geobudget/backend.git
 git branch -M main
 git push -uf origin main
 ```
 
 ## Integrate with your tools
 
-- [ ] [Set up project integrations](http://10.8.0.2/geobudget/backend/-/settings/integrations)
+- [ ] [Set up project integrations](http://gitlab.local/geobudget/backend/-/settings/integrations)
 
 ## Collaborate with your team
 
