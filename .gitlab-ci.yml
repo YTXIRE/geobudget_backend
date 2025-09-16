@@ -8,18 +8,24 @@ variables:
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
 
-before_script:
-  - echo "🧹 Preparing..."
-  - docker info
-
 build:
   stage: build
   tags:
     - docker
-  image: eclipse-temurin:24-jdk
+  image: gradle:8.10-jdk17
+  cache:
+    key: gradle-cache
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
   script:
-    - ./gradlew --version
-    - ./gradlew clean bootJar --stacktrace
+    - echo "===== 🧹 START BUILD STAGE ====="
+    - echo "👉 Проверяем версию Gradle..."
+    - gradle --version
+    - echo "👉 Чистим проект и собираем bootJar..."
+    - gradle clean bootJar --stacktrace
+    - echo "✅ Сборка завершена, jar создан"
+    - echo "===== 🧹 END BUILD STAGE ====="
   artifacts:
     paths:
       - build/libs/*.jar
@@ -32,9 +38,17 @@ docker_build_push:
   services:
     - docker:25.0.3-dind
   script:
+    - echo "===== 🐳 START DOCKER BUILD & PUSH STAGE ====="
+    - echo "👉 Проверяем доступность Docker..."
+    - docker info
+    - echo "👉 Логинимся в локальный registry (может пропустить ошибку)..."
     - docker login $REGISTRY || echo "⚠️ Не удалось залогиниться"
+    - echo "👉 Собираем Docker-образ: $IMAGE_NAME:latest"
     - docker build -t $IMAGE_NAME:latest .
+    - echo "👉 Пушим образ в $REGISTRY"
     - docker push $IMAGE_NAME:latest
+    - echo "✅ Docker image собран и отправлен"
+    - echo "===== 🐳 END DOCKER BUILD & PUSH STAGE ====="
 
 deploy:
   stage: deploy
@@ -44,7 +58,16 @@ deploy:
   services:
     - docker:25.0.3-dind
   script:
+    - echo "===== 🚀 START DEPLOY STAGE ====="
+    - echo "👉 Проверяем доступность Docker..."
+    - docker info
+    - echo "👉 Тянем образ $IMAGE_NAME:latest"
     - docker pull $IMAGE_NAME:latest
+    - echo "👉 Переходим в директорию проекта: $CI_PROJECT_DIR"
     - cd $CI_PROJECT_DIR
-    - docker compose down
+    - echo "👉 Останавливаем предыдущие контейнеры..."
+    - docker compose down || echo "⚠️ Не было контейнеров для остановки"
+    - echo "👉 Запускаем новые контейнеры..."
     - docker compose up -d
+    - echo "✅ Деплой завершён"
+    - echo "===== 🚀 END DEPLOY STAGE ====="
