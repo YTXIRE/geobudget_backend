@@ -4,7 +4,6 @@ stages:
   - deploy
 
 variables:
-  DOCKER_HOST: "unix:///var/run/docker.sock"
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
@@ -15,13 +14,7 @@ variables:
 build:
   stage: build
   tags:
-    - shell
-  image: eclipse-temurin:24-jdk
-  cache:
-    key: gradle-cache
-    paths:
-      - .gradle/wrapper
-      - .gradle/caches
+    - shell   # <- обязательно shell executor
   script:
     - echo "===== 🧹 START BUILD STAGE ====="
     - java -version
@@ -40,7 +33,6 @@ docker_build_push:
   stage: docker
   tags:
     - shell
-  image: docker:25.0.3
   script:
     - echo "===== 🐳 START DOCKER BUILD & PUSH ====="
     - docker info
@@ -58,7 +50,6 @@ deploy:
   stage: deploy
   tags:
     - shell
-  image: docker:25.0.3
   script:
     - echo "===== 🚀 START DEPLOY ====="
     - docker info
