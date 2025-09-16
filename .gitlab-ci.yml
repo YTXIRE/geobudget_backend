@@ -39,16 +39,20 @@ build:
 docker_build_push:
   stage: docker
   tags:
-    - shell
+    - docker
+  image: docker:25.0.3
+  services:
+    - name: docker:25.0.3-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "===== 🐳 START DOCKER BUILD & PUSH ====="
     - docker info
-    - docker login $REGISTRY || echo "⚠️ Не удалось залогиниться"
     - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
     - docker push $IMAGE_NAME:latest
     - docker push $IMAGE_NAME:$COMMIT_TAG
-    - echo "✅ Docker image собран и отправлен"
-    - echo "===== 🐳 END DOCKER BUILD & PUSH ====="
+
 
 # -------------------
 # Deploy stage
