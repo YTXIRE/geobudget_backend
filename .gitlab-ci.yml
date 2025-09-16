@@ -4,6 +4,7 @@ stages:
   - deploy
 
 variables:
+  DOCKER_HOST: "tcp://docker:2375"
   DOCKER_TLS_CERTDIR: ""
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
@@ -38,9 +39,14 @@ docker_build_push:
     - docker
   image: docker:25.0.3
   services:
-    - docker:25.0.3-dind
+    - name: docker:25.0.3-dind
+      alias: docker
   script:
     - echo "===== 🐳 START DOCKER BUILD & PUSH STAGE ====="
+    - echo "👉 Проверяем переменные окружения..."
+    - echo "DOCKER_HOST=$DOCKER_HOST"
+    - echo "REGISTRY=$REGISTRY"
+    - echo "IMAGE_NAME=$IMAGE_NAME"
     - echo "👉 Проверяем доступность Docker..."
     - docker info
     - echo "👉 Логинимся в локальный registry (может пропустить ошибку)..."
@@ -58,9 +64,13 @@ deploy:
     - docker
   image: docker:25.0.3
   services:
-    - docker:25.0.3-dind
+    - name: docker:25.0.3-dind
+      alias: docker
   script:
     - echo "===== 🚀 START DEPLOY STAGE ====="
+    - echo "👉 Проверяем переменные окружения..."
+    - echo "DOCKER_HOST=$DOCKER_HOST"
+    - echo "IMAGE_NAME=$IMAGE_NAME"
     - echo "👉 Проверяем доступность Docker..."
     - docker info
     - echo "👉 Тянем образ $IMAGE_NAME:latest"
