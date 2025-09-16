@@ -4,8 +4,7 @@ stages:
   - deploy
 
 variables:
-  DOCKER_HOST: "tcp://docker:2375"
-  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "unix:///var/run/docker.sock"
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
@@ -39,10 +38,8 @@ docker_build_push:
   tags:
     - docker
   image: docker:25.0.3
-  services:
-    - name: docker:25.0.3-dind
-      alias: docker
-      command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
   script:
     - echo "===== 🐳 START DOCKER BUILD & PUSH STAGE ====="
     - echo "DOCKER_HOST=$DOCKER_HOST"
@@ -66,10 +63,8 @@ deploy:
   tags:
     - docker
   image: docker:25.0.3
-  services:
-    - name: docker:25.0.3-dind
-      alias: docker
-      command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
   script:
     - echo "===== 🚀 START DEPLOY STAGE ====="
     - echo "DOCKER_HOST=$DOCKER_HOST"
