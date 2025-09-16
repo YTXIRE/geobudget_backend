@@ -12,7 +12,7 @@ build:
   stage: build
   tags:
     - docker
-  image: gradle:8.10-jdk17
+  image: gradle:8.10-jdk24
   cache:
     key: gradle-cache
     paths:
