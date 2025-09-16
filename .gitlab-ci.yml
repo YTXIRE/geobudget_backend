@@ -4,9 +4,11 @@ stages:
   - deploy
 
 variables:
-  DOCKER_HOST: "unix:///var/run/docker.sock"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
+  COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
 
 build:
   stage: build
@@ -37,20 +39,25 @@ docker_build_push:
   tags:
     - docker
   image: docker:25.0.3
+  services:
+    - name: docker:25.0.3-dind
+      alias: docker
+  privileged: true
   script:
     - echo "===== 🐳 START DOCKER BUILD & PUSH STAGE ====="
-    - echo "👉 Проверяем переменные окружения..."
     - echo "DOCKER_HOST=$DOCKER_HOST"
     - echo "REGISTRY=$REGISTRY"
     - echo "IMAGE_NAME=$IMAGE_NAME"
+    - echo "COMMIT_TAG=$COMMIT_TAG"
     - echo "👉 Проверяем доступность Docker..."
     - docker info
     - echo "👉 Логинимся в локальный registry (может пропустить ошибку)..."
     - docker login $REGISTRY || echo "⚠️ Не удалось залогиниться"
     - echo "👉 Собираем Docker-образ..."
-    - docker build -t $IMAGE_NAME:latest .
-    - echo "👉 Пушим образ в $REGISTRY"
+    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
+    - echo "👉 Пушим Docker-образы..."
     - docker push $IMAGE_NAME:latest
+    - docker push $IMAGE_NAME:$COMMIT_TAG
     - echo "✅ Docker image собран и отправлен"
     - echo "===== 🐳 END DOCKER BUILD & PUSH STAGE ====="
 
@@ -59,11 +66,15 @@ deploy:
   tags:
     - docker
   image: docker:25.0.3
+  services:
+    - name: docker:25.0.3-dind
+      alias: docker
+  privileged: true
   script:
     - echo "===== 🚀 START DEPLOY STAGE ====="
-    - echo "👉 Проверяем переменные окружения..."
     - echo "DOCKER_HOST=$DOCKER_HOST"
     - echo "IMAGE_NAME=$IMAGE_NAME"
+    - echo "COMMIT_TAG=$COMMIT_TAG"
     - echo "👉 Проверяем доступность Docker..."
     - docker info
     - echo "👉 Тянем образ $IMAGE_NAME:latest"
