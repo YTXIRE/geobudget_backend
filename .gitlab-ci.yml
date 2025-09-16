@@ -42,7 +42,7 @@ docker_build_push:
   services:
     - name: docker:25.0.3-dind
       alias: docker
-  privileged: true
+      command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
   script:
     - echo "===== 🐳 START DOCKER BUILD & PUSH STAGE ====="
     - echo "DOCKER_HOST=$DOCKER_HOST"
@@ -69,7 +69,7 @@ deploy:
   services:
     - name: docker:25.0.3-dind
       alias: docker
-  privileged: true
+      command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
   script:
     - echo "===== 🚀 START DEPLOY STAGE ====="
     - echo "DOCKER_HOST=$DOCKER_HOST"
