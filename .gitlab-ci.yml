@@ -43,7 +43,7 @@ docker_build_push:
     - docker info
     - echo "👉 Логинимся в локальный registry (может пропустить ошибку)..."
     - docker login $REGISTRY || echo "⚠️ Не удалось залогиниться"
-    - echo "👉 Собираем Docker-образ: $IMAGE_NAME:latest"
+    - echo "👉 Собираем Docker-образ:"
     - docker build -t $IMAGE_NAME:latest .
     - echo "👉 Пушим образ в $REGISTRY"
     - docker push $IMAGE_NAME:latest
@@ -63,7 +63,7 @@ deploy:
     - docker info
     - echo "👉 Тянем образ $IMAGE_NAME:latest"
     - docker pull $IMAGE_NAME:latest
-    - echo "👉 Переходим в директорию проекта: $CI_PROJECT_DIR"
+    - echo "👉 Переходим в директорию проекта:"
     - cd $CI_PROJECT_DIR
     - echo "👉 Останавливаем предыдущие контейнеры..."
     - docker compose down || echo "⚠️ Не было контейнеров для остановки"
