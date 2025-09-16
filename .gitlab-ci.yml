@@ -4,10 +4,10 @@ stages:
   - deploy
 
 variables:
-  DOCKER_HOST: "unix:///var/run/docker.sock"
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
+  DOCKER_TLS_CERTDIR: ""
 
 # -------------------
 # Build stage
@@ -43,16 +43,17 @@ docker_build_push:
   image: docker:25.0.3
   services:
     - name: docker:25.0.3-dind
-      command: ["--tls=false"]
+      alias: docker
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
+    - echo "===== 🐳 START DOCKER BUILD ====="
     - docker info
     - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
     - docker push $IMAGE_NAME:latest
     - docker push $IMAGE_NAME:$COMMIT_TAG
-
+    - echo "===== 🐳 END DOCKER BUILD ====="
 
 # -------------------
 # Deploy stage
