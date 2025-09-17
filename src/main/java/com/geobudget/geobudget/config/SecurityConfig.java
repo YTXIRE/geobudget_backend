@@ -44,7 +44,6 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/api-docs/**",
                                 "/api/v1/users/login",
-                                "/api/v1/users/logout",
                                 "/api/v1/country"
                         ).permitAll()
                         .anyRequest()
