@@ -67,8 +67,11 @@ dadata:
   cleanUrl: https://cleaner.dadata.ru/api/v1/clean/address
 
 receipts:
+  retry:
+    delay: 1000
+    attempts: 3
   proverkacheka:
-    apiKey: ${PROVERKACHECKA_API_KEY:}
+    apiKey: ${PROVERKACHECKA_API_KEY:34309.yzpbf7SS9gtRQh5cK}
 
 # Swagger UI
 springdoc:

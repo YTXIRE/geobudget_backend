@@ -1,5 +1,6 @@
 package com.geobudget.geobudget.dto.checkReceipt;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,6 +11,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true) // игнорируем code, first, request
 public class CheckReceipt {
     private List<Item> items;
     private String companyName;
@@ -26,10 +28,10 @@ public class CheckReceipt {
             this.items = json.getItems();
             this.companyName = json.getUser();
             this.region = json.getRegion();
-            this.inn = json.getUserInn().strip();
+            this.inn = json.getUserInn() != null ? json.getUserInn().strip() : null;
             this.shopAddress = json.getRetailPlaceAddress();
             this.timeOfPurchase = json.getDateTime();
-            this.totalSum = json.getTotalSum() / 100.0;
+            this.totalSum = json.getTotalSum() / 100.0; // API присылает сумму в копейках
         }
     }
 }

@@ -1,7 +1,11 @@
 package com.geobudget.geobudget.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geobudget.geobudget.config.ReceiptsProperties;
 import com.geobudget.geobudget.dto.checkReceipt.CheckReceipt;
+import com.geobudget.geobudget.dto.checkReceipt.DataJson;
 import com.geobudget.geobudget.validator.ReceiptValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +18,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -23,15 +28,23 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class CheckReceiptService {
+
     private final RestTemplate restTemplate;
     private final ReceiptValidator receiptValidator;
     private final ReceiptsProperties receiptsProperties;
 
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     @Retryable(
-            backoff = @Backoff(delay = 100)
+            backoff = @Backoff(delay = 100),
+            value = {RestClientException.class},
+            maxAttempts = 3
     )
-    public CheckReceipt checkReceipt(String qrString) {
-        receiptValidator.validateQr(qrString);
+    public CheckReceipt checkReceipt(String qrString) throws InterruptedException, JsonProcessingException {
+        log.info("CheckReceiptService.checkReceipt: qrString={}", qrString);
+        receiptValidator.validateQr(qrString.trim());
+
         String url = "https://proverkacheka.com/api/v1/check/get";
 
         HttpHeaders headers = new HttpHeaders();
@@ -42,23 +55,36 @@ public class CheckReceiptService {
         requestBody.put("token", receiptsProperties.getApiKey());
         requestBody.put("qr", "3");
 
-        try {
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<CheckReceipt> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    CheckReceipt.class
-            );
-            CheckReceipt body = response.getBody();
-            log.info("CheckReceiptService.checkReceipt: status={} hasBody={} ", response.getStatusCode(), body != null);
-            return body;
-        } catch (HttpMessageNotReadableException e) {
-            log.error("CheckReceiptService.checkReceipt: unreadable response", e);
-            throw e;
-        } catch (Exception e) {
-            log.error("CheckReceiptService.checkReceipt: request failed", e);
-            throw e;
+        for (int i = 1; i <= 10; i++) {
+            log.info("CheckReceiptService.checkReceipt: attempt {}", i + 1);
+            try {
+                HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+
+                String body = response.getBody();
+                if (body != null && body.contains("Не авторизован")) {
+                    log.warn("CheckReceiptService.checkReceipt: body={}", body);
+                    Thread.sleep(300 * i);
+                    continue;
+                }
+
+                log.info("CheckReceiptService.checkReceipt: status={} hasBody={}", response.getStatusCode(), body != null);
+
+                if (body != null) {
+                    log.info("CheckReceiptService.checkReceipt: body={}", body);
+                    // Десериализуем только поле data
+                    CheckReceipt dataJson = objectMapper.readValue(body, CheckReceipt.class);
+                    log.info("CheckReceiptService.checkReceipt: dataJson={}", dataJson);
+                    return dataJson;
+                }
+            } catch (HttpMessageNotReadableException e) {
+                log.error("CheckReceiptService.checkReceipt: unreadable response", e);
+                throw e;
+            } catch (Exception e) {
+                log.error("CheckReceiptService.checkReceipt: request failed", e);
+                throw e;
+            }
         }
+        return null;
     }
 }

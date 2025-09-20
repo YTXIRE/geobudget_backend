@@ -1,5 +1,6 @@
 package com.geobudget.geobudget.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.geobudget.geobudget.docs.receipt.CheckDoc;
 import com.geobudget.geobudget.dto.checkReceipt.CheckReceipt;
 import com.geobudget.geobudget.service.CheckReceiptService;
@@ -23,7 +24,7 @@ public class ReceiptController {
 
     @CheckDoc
     @PostMapping("/check")
-    public ResponseEntity<CheckReceipt> checkReceipt(@RequestBody Map<String, String> request) {
+    public ResponseEntity<CheckReceipt> checkReceipt(@RequestBody Map<String, String> request) throws InterruptedException, JsonProcessingException {
         String qr = request.get("qr");
         CheckReceipt result = checkReceiptService.checkReceipt(qr);
         return ResponseEntity.ok(result);
