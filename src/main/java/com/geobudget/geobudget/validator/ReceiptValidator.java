@@ -1,8 +1,10 @@
 package com.geobudget.geobudget.validator;
 
 import com.geobudget.geobudget.exception.DataValidationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class ReceiptValidator {
     public void validateQr(String qrString) {
@@ -12,7 +14,7 @@ public class ReceiptValidator {
 
         String[] qrList = qrString.split("&");
 
-        if (qrList.length != 6 || qrList[0].startsWith("t=") || qrList[1].startsWith("s=") || qrList[2].startsWith("fn=") || qrList[3].startsWith("i=") || qrList[4].startsWith("fp=") || qrList[5].startsWith("n=")) {
+        if (qrList.length != 6 || !qrList[0].startsWith("t=") || !qrList[1].startsWith("s=") || !qrList[2].startsWith("fn=") || !qrList[3].startsWith("i=") || !qrList[4].startsWith("fp=") || !qrList[5].startsWith("n=")) {
             throw new DataValidationException("Некорректный формат qr");
         }
 
