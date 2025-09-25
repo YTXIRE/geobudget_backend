@@ -2,6 +2,7 @@ package com.geobudget.geobudget.dto.checkReceipt;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.geobudget.geobudget.dto.CategoryDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,7 @@ public class CheckReceipt {
     private String region;
     private String inn;
     private String shopAddress;
+    private CategoryDto category;
 
     @JsonProperty("data")
     public void setData(DataJson data) {

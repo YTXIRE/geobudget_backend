@@ -1,12 +1,12 @@
 package com.geobudget.geobudget.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geobudget.geobudget.config.ReceiptsProperties;
+import com.geobudget.geobudget.dto.CategoryDto;
 import com.geobudget.geobudget.dto.checkReceipt.CheckReceipt;
-import com.geobudget.geobudget.dto.checkReceipt.DataJson;
 import com.geobudget.geobudget.validator.ReceiptValidator;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -33,6 +33,8 @@ public class CheckReceiptService {
     private final ReceiptValidator receiptValidator;
     private final ReceiptsProperties receiptsProperties;
 
+    private final CategoryService categoryService;
+
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -41,7 +43,8 @@ public class CheckReceiptService {
             value = {RestClientException.class},
             maxAttempts = 3
     )
-    public CheckReceipt checkReceipt(String qrString) throws InterruptedException, JsonProcessingException {
+    @Transactional
+    public CheckReceipt checkReceipt(String qrString) throws Exception {
         log.info("CheckReceiptService.checkReceipt: qrString={}", qrString);
         receiptValidator.validateQr(qrString.trim());
 
@@ -75,6 +78,12 @@ public class CheckReceiptService {
                     // Десериализуем только поле data
                     CheckReceipt dataJson = objectMapper.readValue(body, CheckReceipt.class);
                     log.info("CheckReceiptService.checkReceipt: dataJson={}", dataJson);
+
+                    CategoryDto categoryDto = categoryService.getCategory(dataJson.getInn());
+                    log.info("CheckReceiptService.checkReceipt: companyInfo={}", categoryDto);
+
+                    dataJson.setCategory(categoryDto);
+
                     return dataJson;
                 }
             } catch (HttpMessageNotReadableException e) {
