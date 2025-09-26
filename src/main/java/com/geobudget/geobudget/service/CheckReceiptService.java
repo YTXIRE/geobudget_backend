@@ -75,7 +75,7 @@ public class CheckReceiptService {
 
                 if (body != null) {
                     log.info("CheckReceiptService.checkReceipt: body={}", body);
-                    // Десериализуем только поле data
+
                     CheckReceipt dataJson = objectMapper.readValue(body, CheckReceipt.class);
                     log.info("CheckReceiptService.checkReceipt: dataJson={}", dataJson);
 

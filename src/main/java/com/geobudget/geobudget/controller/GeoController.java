@@ -5,11 +5,13 @@ import com.geobudget.geobudget.docs.geo.GetCityByIpExternalIpDoc;
 import com.geobudget.geobudget.docs.geo.GetGeoCompany;
 import com.geobudget.geobudget.docs.geo.GetIpDoc;
 import com.geobudget.geobudget.dto.geoCompany.AddressDto;
+import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.service.DadataService;
 import com.geobudget.geobudget.service.GeoIpService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,9 +32,9 @@ public class GeoController {
     private final DadataService dadataService;
 
     @GetCityByIpDoc
-    @GetMapping("/get-city")
-    public String getCity(@RequestParam @NotBlank(message = "IP обязателен") String ip) {
-        return geoIpService.getCityByIp(ip);
+    @GetMapping("/get-city-and-country-by-ip")
+    public ResponseEntity<CountryAndCity> getCityAndCountryByIp(@RequestParam @NotBlank(message = "IP обязателен") String ip) {
+        return ResponseEntity.ok(geoIpService.getCityAndCountryByIp(ip));
     }
 
     @GetIpDoc
@@ -43,8 +45,8 @@ public class GeoController {
 
     @GetCityByIpExternalIpDoc
     @GetMapping("/get-city-by-external-ip")
-    public String getExternalIp() {
-        return geoIpService.getCityByExternalIp();
+    public ResponseEntity<CountryAndCity> getExternalIp() {
+        return ResponseEntity.ok(geoIpService.getCityByExternalIp());
     }
 
     @GetGeoCompany

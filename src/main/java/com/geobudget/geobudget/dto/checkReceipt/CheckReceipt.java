@@ -17,7 +17,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true) // игнорируем code, first, request
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CheckReceipt {
     private List<Item> items;
     private String companyName;
