@@ -7,6 +7,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Data
@@ -22,6 +27,7 @@ public class CheckReceipt {
     private String inn;
     private String shopAddress;
     private CategoryDto category;
+    private long timestamp;
 
     @JsonProperty("data")
     public void setData(DataJson data) {
@@ -32,8 +38,15 @@ public class CheckReceipt {
             this.region = json.getRegion();
             this.inn = json.getUserInn() != null ? json.getUserInn().strip() : null;
             this.shopAddress = json.getRetailPlaceAddress();
-            this.timeOfPurchase = json.getDateTime();
-            this.totalSum = json.getTotalSum() / 100.0; // API присылает сумму в копейках
+            this.totalSum = json.getTotalSum() / 100.0;
+
+            ZonedDateTime moscowTime = LocalDateTime
+                    .parse(json.getDateTime())
+                    .atZone(ZoneOffset.UTC)
+                    .withZoneSameInstant(ZoneId.of("Europe/Moscow"));
+
+            this.timestamp = moscowTime.toEpochSecond();
+            this.timeOfPurchase = moscowTime.format(DateTimeFormatter.ofPattern("HH:mm:ss dd.MM.yyyy"));
         }
     }
 }
