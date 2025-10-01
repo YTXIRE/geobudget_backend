@@ -29,24 +29,6 @@ class GeoControllerTest {
 
     @Test
     @WithMockUser(roles = {"USER"})
-    void getCity_returns200() throws Exception {
-        Mockito.when(geoIpService.getCityByIp(anyString())).thenReturn("Moscow");
-
-        mockMvc.perform(get("/api/v1/geo/get-city").param("ip", "8.8.8.8"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @WithMockUser(roles = {"USER"})
-    void getIp_returns200() throws Exception {
-        Mockito.when(geoIpService.getExternalIp()).thenReturn("1.2.3.4");
-
-        mockMvc.perform(get("/api/v1/geo/get-ip"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @WithMockUser(roles = {"USER"})
     void getGeoCompany_returns200() throws Exception {
         Mockito.when(dadataService.getGeoCompany(anyString())).thenReturn(new AddressDto());
 

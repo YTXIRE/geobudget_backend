@@ -9,6 +9,7 @@ import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.service.DadataService;
 import com.geobudget.geobudget.service.GeoIpService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -39,14 +40,14 @@ public class GeoController {
 
     @GetIpDoc
     @GetMapping("/get-ip")
-    public String getIp() {
-        return geoIpService.getExternalIp();
+    public String getIp(HttpServletRequest request) {
+        return geoIpService.getExternalIp(request);
     }
 
     @GetCityByIpExternalIpDoc
     @GetMapping("/get-city-by-external-ip")
-    public ResponseEntity<CountryAndCity> getExternalIp() {
-        return ResponseEntity.ok(geoIpService.getCityByExternalIp());
+    public ResponseEntity<CountryAndCity> getExternalIp(HttpServletRequest request) {
+        return ResponseEntity.ok(geoIpService.getCityByExternalIp(request));
     }
 
     @GetGeoCompany
