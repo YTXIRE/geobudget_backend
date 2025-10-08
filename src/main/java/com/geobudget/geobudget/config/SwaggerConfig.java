@@ -34,7 +34,8 @@ public class SwaggerConfig {
                         .version("1.0")
                         .description("API документация для GeoBudget"))
                 .servers(List.of(
-                        new Server().url("https://backend.xire.ru")
+                        new Server().url("https://backend.xire.ru"),
+                        new Server().url("http://localhost:8180")
                 ));
     }
 }

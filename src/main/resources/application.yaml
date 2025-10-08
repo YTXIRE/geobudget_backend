@@ -4,7 +4,8 @@ server:
 spring:
   application:
     name: geobudget
-    url: http://localhost:8180
+    url: https://backend.xire.ru
+#    url: http:/localhost:8180
 
   datasource:
     url: jdbc:postgresql://localhost:5432/geobudget

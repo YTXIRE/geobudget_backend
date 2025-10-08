@@ -39,6 +39,7 @@ public class SecurityConfig {
                                 "/api-docs/**",
                                 "/api/v1/users/login",
                                 "/api/v1/users/register",
+                                "/api/v1/users/confirm",
                                 "/api/v1/country"
                         ).permitAll()
                         .anyRequest()

@@ -13,7 +13,10 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // разрешаем Swagger UI и фронтенду обращаться к backend
-        configuration.setAllowedOrigins(List.of("https://backend.xire.ru"));
+        configuration.setAllowedOrigins(List.of(
+                "https://backend.xire.ru",
+                "http://localhost:8180"
+                ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*")); // разрешаем все заголовки
         configuration.setAllowCredentials(true); // включаем для авторизации

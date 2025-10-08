@@ -3,6 +3,7 @@ package com.geobudget.geobudget.service;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -10,9 +11,10 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -37,7 +39,10 @@ public class EmailService {
     public void sendConfirmationEmail(String to, String token) throws MessagingException, IOException {
         String link = url + "/api/v1/users/confirm?token=" + token;
 
-        String htmlContent = Files.readString(confirmationTemplate.getFile().toPath(), StandardCharsets.UTF_8);
+        String htmlContent;
+        try (InputStream is = confirmationTemplate.getInputStream()) {
+            htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
         htmlContent = htmlContent.replace("{{CONFIRMATION_LINK}}", link);
 
         sendEmail(to, "Подтверждение регистрации", htmlContent, "html");
@@ -46,14 +51,20 @@ public class EmailService {
     public void sendPasswordResetConfirmationEmail(String to, String token) throws IOException, MessagingException {
         String link = url + "/api/v1/users/password/reset-confirm?token=" + token;
 
-        String htmlContent = Files.readString(resetPasswordTemplate.getFile().toPath(), StandardCharsets.UTF_8);
+        String htmlContent;
+        try (InputStream is = resetPasswordTemplate.getInputStream()) {
+            htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
         htmlContent = htmlContent.replace("{{LINK}}", link);
 
         sendEmail(to, "Подтверждение сброса пароля", htmlContent, "html");
     }
 
     public void sendTemporaryPasswordEmail(String to, String tempPassword) throws IOException, MessagingException {
-        String htmlContent = Files.readString(tempPasswordTemplate.getFile().toPath(), StandardCharsets.UTF_8);
+        String htmlContent;
+        try (InputStream is = tempPasswordTemplate.getInputStream()) {
+            htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
         htmlContent = htmlContent.replace("{{TEMP_PASSWORD}}", tempPassword);
 
         sendEmail(to, "Ваш временный пароль", htmlContent, "html");
