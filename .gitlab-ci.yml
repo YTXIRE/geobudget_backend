@@ -10,7 +10,6 @@ variables:
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
   DOCKER_TLS_CERTDIR: ""
   GITHUB_TOKEN: "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"
-  GITHUB_REPO: "github.com/YTXIRE/geobudget_backend.git"
 
 # -------------------
 # Build stage
@@ -84,7 +83,7 @@ mirror_to_github:
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
     - git remote remove github || true
-    - git remote add github https://oauth2:${GITHUB_TOKEN}@{GITHUB_REPO}
+    - git remote add github https://oauth2:${GITHUB_TOKEN}github.com/YTXIRE/geobudget_backend.git
     - git fetch github || true
     - git push --force --mirror github
     - echo "✅ Копирование завершено"
