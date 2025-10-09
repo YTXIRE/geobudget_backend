@@ -78,6 +78,8 @@ deploy:
 
 mirror_to_github:
   stage: mirror
+  tags:
+    - shell
   script:
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
