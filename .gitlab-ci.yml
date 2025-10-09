@@ -10,7 +10,6 @@ variables:
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
   DOCKER_TLS_CERTDIR: ""
-  GITHUB_TOKEN: "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"
 
 # -------------------
 # Build stage
@@ -87,7 +86,7 @@ mirror_to_github:
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
     - git remote remove github || true
-    - git remote add github https://oauth2:${GITHUB_TOKEN}@github.com/YTXIRE/geobudget_backend.git
+    - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
     - git fetch github || true
     # Push только ветки и теги, игнорируя refs/pipelines
     - git push github +refs/heads/*:refs/heads/* --tags --force
