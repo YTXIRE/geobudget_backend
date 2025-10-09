@@ -3,6 +3,7 @@ stages:
   - docker
   - deploy
   - mirror
+  - notify
 
 variables:
   REGISTRY: "localhost:5000"
@@ -90,3 +91,18 @@ mirror_to_github:
   only:
     - main
   when: on_success
+
+# -------------------
+# Отправка в Telegram
+# -------------------
+notify_telegram:
+  stage: notify
+  image: python:3.12
+  tags:
+    - shell
+  dependencies:
+    - build_android
+  before_script:
+    - pip install requests minio
+  script:
+    - python send_to_telegram.py
