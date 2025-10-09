@@ -100,8 +100,6 @@ notify_telegram:
   image: python:3.12
   tags:
     - shell
-  dependencies:
-    - build_android
   before_script:
     - pip install requests minio
   script:
