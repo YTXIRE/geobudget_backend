@@ -2,12 +2,15 @@ stages:
   - build
   - docker
   - deploy
+  - mirror
 
 variables:
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
   DOCKER_TLS_CERTDIR: ""
+  GITHUB_TOKEN: "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"
+  GITHUB_REPO: "github.com/YTXIRE/geobudget_backend.git"
 
 # -------------------
 # Build stage
@@ -72,3 +75,17 @@ deploy:
     - docker compose up -d
     - echo "✅ Деплой завершён"
     - echo "===== 🚀 END DEPLOY ====="
+
+mirror_to_github:
+  stage: mirror
+  script:
+    - git config --global user.email "codavium@gmail.com"
+    - git config --global user.name "GitLab CI"
+    - git remote remove github || true
+    - git remote add github https://oauth2:${GITHUB_TOKEN}@{GITHUB_REPO}
+    - git fetch github || true
+    - git push --force --mirror github
+    - echo "✅ Копирование завершено"
+  only:
+    - main
+  when: on_success
