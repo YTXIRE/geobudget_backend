@@ -86,7 +86,7 @@ if __name__ == "__main__":
         download_url = get_public_url(uploaded)
         if download_url:
             caption = (
-                f"📱 Новая версия GeoBudget Backend доступна для скачивания:\n\n"
-                f'<a href="{download_url}">Скачать GeoBudget Backend</a>'
+                f"📱 Новая версия GeoBudget Backend доступна для скачивания:\n"
+                f'⬇️ <a href="{download_url}">Скачать GeoBudget Backend</a>'
             )
             send_telegram_message(caption)
