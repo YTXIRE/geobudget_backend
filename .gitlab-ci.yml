@@ -80,6 +80,7 @@ deploy:
 # -------------------
 mirror_to_github:
   stage: mirror
+  image: alpine/git:latest
   tags:
     - shell
   script:
@@ -89,9 +90,9 @@ mirror_to_github:
     - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
     - git fetch github || true
     # Назначаем текущую ветку main (т.к. GitLab делает detached HEAD)
-    - git checkout -B main
+    - git checkout -B master
     # Отправляем только main и теги
-    - git push github main --tags --force
+    - git push github master --tags --force
     - echo "✅ Копирование завершено"
   only:
     - main
