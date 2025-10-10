@@ -14,79 +14,82 @@ variables:
 # -------------------
 # Build stage
 # -------------------
-build:
-  stage: build
-  tags:
-    - shell
-  image: eclipse-temurin:24-jdk
-  cache:
-    key: gradle-cache
-    paths:
-      - .gradle/wrapper
-      - .gradle/caches
-  script:
-    - echo "===== 🧹 START BUILD STAGE ====="
-    - java -version
-    - ./gradlew --version
-    - ./gradlew clean bootJar --stacktrace
-    - echo "✅ Сборка завершена, jar создан"
-    - echo "===== 🧹 END BUILD STAGE ====="
-  artifacts:
-    paths:
-      - build/libs/*.jar
-
-# -------------------
-# Docker build & push
-# -------------------
-docker_build_push:
-  stage: docker
-  tags:
-    - docker
-  image: docker:25.0.3
-  services: [ ]
-  variables:
-    DOCKER_HOST: "unix:///var/run/docker.sock"
-  script:
-    - echo "===== 🐳 START DOCKER BUILD ====="
-    - docker info
-    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
-    - docker push $IMAGE_NAME:latest
-    - docker push $IMAGE_NAME:$COMMIT_TAG
-    - echo "===== 🐳 END DOCKER BUILD ====="
-
-# -------------------
-# Deploy stage
-# -------------------
-deploy:
-  stage: deploy
-  tags:
-    - shell
-  image: docker:25.0.3
-  services: [ ]
-  variables:
-    DOCKER_HOST: "unix:///var/run/docker.sock"
-  script:
-    - echo "===== 🚀 START DEPLOY ====="
-    - docker info
-    - docker pull $IMAGE_NAME:latest
-    - cd $CI_PROJECT_DIR
-    - docker compose down || echo "⚠️ Не было контейнеров для остановки"
-    - docker compose up -d
-    - echo "✅ Деплой завершён"
-    - echo "===== 🚀 END DEPLOY ====="
+#build:
+#  stage: build
+#  tags:
+#    - shell
+#  image: eclipse-temurin:24-jdk
+#  cache:
+#    key: gradle-cache
+#    paths:
+#      - .gradle/wrapper
+#      - .gradle/caches
+#  script:
+#    - echo "===== 🧹 START BUILD STAGE ====="
+#    - java -version
+#    - ./gradlew --version
+#    - ./gradlew clean bootJar --stacktrace
+#    - echo "✅ Сборка завершена, jar создан"
+#    - echo "===== 🧹 END BUILD STAGE ====="
+#  artifacts:
+#    paths:
+#      - build/libs/*.jar
+#
+## -------------------
+## Docker build & push
+## -------------------
+#docker_build_push:
+#  stage: docker
+#  tags:
+#    - docker
+#  image: docker:25.0.3
+#  services: [ ]
+#  variables:
+#    DOCKER_HOST: "unix:///var/run/docker.sock"
+#  script:
+#    - echo "===== 🐳 START DOCKER BUILD ====="
+#    - docker info
+#    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
+#    - docker push $IMAGE_NAME:latest
+#    - docker push $IMAGE_NAME:$COMMIT_TAG
+#    - echo "===== 🐳 END DOCKER BUILD ====="
+#
+## -------------------
+## Deploy stage
+## -------------------
+#deploy:
+#  stage: deploy
+#  tags:
+#    - shell
+#  image: docker:25.0.3
+#  services: [ ]
+#  variables:
+#    DOCKER_HOST: "unix:///var/run/docker.sock"
+#  script:
+#    - echo "===== 🚀 START DEPLOY ====="
+#    - docker info
+#    - docker pull $IMAGE_NAME:latest
+#    - cd $CI_PROJECT_DIR
+#    - docker compose down || echo "⚠️ Не было контейнеров для остановки"
+#    - docker compose up -d
+#    - echo "✅ Деплой завершён"
+#    - echo "===== 🚀 END DEPLOY ====="
 
 # -------------------
 # Mirror to GitHub (без refs/pipelines)
 # -------------------
 mirror_to_github:
   stage: mirror
-  image: alpine/git:latest
+  image: alpine:latest
   tags:
     - shell
   variables:
-    GIT_DEPTH: "0"                  # Полный clone, иначе GitHub не примет push
-    GIT_PACK_THREADS: "1"           # Уменьшаем нагрузку при упаковке
+    GIT_DEPTH: "0"
+    GIT_PACK_THREADS: "1"
   script:
+    # Устанавливаем git и сертификаты
+    - apk add --no-cache git ca-certificates
+
     # Настраиваем Git
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
@@ -95,16 +98,16 @@ mirror_to_github:
     - git remote remove github || true
     - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
 
-    # Полная очистка и репаковка, чтобы избежать "index-pack failed"
+    # Очистка и репаковка (исключает ошибки index-pack)
     - git remote prune origin || true
     - git fetch --all
     - git gc --prune=now
     - git repack -a -d --window=1
 
-    # Гарантированно переходим на основную ветку
+    # Переключаемся на master
     - git checkout -B master
 
-    # Полный push всех веток и тегов
+    # Отправляем полностью (все ветки и теги)
     - git push --mirror github
 
     - echo "✅ Репозиторий успешно зеркалирован на GitHub"
