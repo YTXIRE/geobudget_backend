@@ -91,12 +91,14 @@ mirror_to_github:
     - git remote remove github || true
     - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
     - git fetch github || true
+    - git remote prune github
+    - git gc --prune=now
+    - git repack -a -d
     - git checkout -B master
     - git push github master --tags --force
     - echo "✅ Копирование завершено"
   only:
     - main
-  when: on_success
 
 
 # -------------------
