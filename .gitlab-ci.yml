@@ -96,7 +96,7 @@ mirror_to_github:
 
     # Добавляем GitHub remote
     - git remote remove github || true
-    - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
+    - git remote add github https://x-access-token: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@github.com/YTXIRE/geobudget_backend.git
 
     # Очистка и репаковка (исключает ошибки index-pack)
     - git remote prune origin || true
