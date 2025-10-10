@@ -88,12 +88,15 @@ mirror_to_github:
     - git remote remove github || true
     - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
     - git fetch github || true
-    # Push только ветки и теги, игнорируя refs/pipelines
-    - git push github +refs/heads/*:refs/heads/* --tags --force
+    # Назначаем текущую ветку main (т.к. GitLab делает detached HEAD)
+    - git checkout -B main
+    # Отправляем только main и теги
+    - git push github main --tags --force
     - echo "✅ Копирование завершено"
   only:
     - main
   when: on_success
+
 
 # -------------------
 # Отправка в Telegram
