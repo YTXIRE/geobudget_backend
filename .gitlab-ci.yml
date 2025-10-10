@@ -80,25 +80,37 @@ deploy:
 # -------------------
 mirror_to_github:
   stage: mirror
-  image: alpine:latest
+  image: alpine/git:latest
   tags:
     - shell
-  before_script:
-    - apk add --no-cache git
+  variables:
+    GIT_DEPTH: "0"                  # Полный clone, иначе GitHub не примет push
+    GIT_PACK_THREADS: "1"           # Уменьшаем нагрузку при упаковке
   script:
+    # Настраиваем Git
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
+
+    # Добавляем GitHub remote
     - git remote remove github || true
     - git remote add github https://oauth2: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@github.com/YTXIRE/geobudget_backend.git
-    - git fetch github || true
-    - git remote prune github
+
+    # Полная очистка и репаковка, чтобы избежать "index-pack failed"
+    - git remote prune origin || true
+    - git fetch --all
     - git gc --prune=now
-    - git repack -a -d
+    - git repack -a -d --window=1
+
+    # Гарантированно переходим на основную ветку
     - git checkout -B master
-    - git push github master --tags --force
-    - echo "✅ Копирование завершено"
+
+    # Полный push всех веток и тегов
+    - git push --mirror github
+
+    - echo "✅ Репозиторий успешно зеркалирован на GitHub"
   only:
     - main
+  when: on_success
 
 
 # -------------------
