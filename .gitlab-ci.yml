@@ -14,66 +14,66 @@ variables:
 # -------------------
 # Build stage
 # -------------------
-#build:
-#  stage: build
-#  tags:
-#    - shell
-#  image: eclipse-temurin:24-jdk
-#  cache:
-#    key: gradle-cache
-#    paths:
-#      - .gradle/wrapper
-#      - .gradle/caches
-#  script:
-#    - echo "===== 🧹 START BUILD STAGE ====="
-#    - java -version
-#    - ./gradlew --version
-#    - ./gradlew clean bootJar --stacktrace
-#    - echo "✅ Сборка завершена, jar создан"
-#    - echo "===== 🧹 END BUILD STAGE ====="
-#  artifacts:
-#    paths:
-#      - build/libs/*.jar
-#
-## -------------------
-## Docker build & push
-## -------------------
-#docker_build_push:
-#  stage: docker
-#  tags:
-#    - docker
-#  image: docker:25.0.3
-#  services: [ ]
-#  variables:
-#    DOCKER_HOST: "unix:///var/run/docker.sock"
-#  script:
-#    - echo "===== 🐳 START DOCKER BUILD ====="
-#    - docker info
-#    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
-#    - docker push $IMAGE_NAME:latest
-#    - docker push $IMAGE_NAME:$COMMIT_TAG
-#    - echo "===== 🐳 END DOCKER BUILD ====="
-#
-## -------------------
-## Deploy stage
-## -------------------
-#deploy:
-#  stage: deploy
-#  tags:
-#    - shell
-#  image: docker:25.0.3
-#  services: [ ]
-#  variables:
-#    DOCKER_HOST: "unix:///var/run/docker.sock"
-#  script:
-#    - echo "===== 🚀 START DEPLOY ====="
-#    - docker info
-#    - docker pull $IMAGE_NAME:latest
-#    - cd $CI_PROJECT_DIR
-#    - docker compose down || echo "⚠️ Не было контейнеров для остановки"
-#    - docker compose up -d
-#    - echo "✅ Деплой завершён"
-#    - echo "===== 🚀 END DEPLOY ====="
+build:
+  stage: build
+  tags:
+    - shell
+  image: eclipse-temurin:24-jdk
+  cache:
+    key: gradle-cache
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+  script:
+    - echo "===== 🧹 START BUILD STAGE ====="
+    - java -version
+    - ./gradlew --version
+    - ./gradlew clean bootJar --stacktrace
+    - echo "✅ Сборка завершена, jar создан"
+    - echo "===== 🧹 END BUILD STAGE ====="
+  artifacts:
+    paths:
+      - build/libs/*.jar
+
+# -------------------
+# Docker build & push
+# -------------------
+docker_build_push:
+  stage: docker
+  tags:
+    - docker
+  image: docker:25.0.3
+  services: [ ]
+  variables:
+    DOCKER_HOST: "unix:///var/run/docker.sock"
+  script:
+    - echo "===== 🐳 START DOCKER BUILD ====="
+    - docker info
+    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
+    - docker push $IMAGE_NAME:latest
+    - docker push $IMAGE_NAME:$COMMIT_TAG
+    - echo "===== 🐳 END DOCKER BUILD ====="
+
+# -------------------
+# Deploy stage
+# -------------------
+deploy:
+  stage: deploy
+  tags:
+    - shell
+  image: docker:25.0.3
+  services: [ ]
+  variables:
+    DOCKER_HOST: "unix:///var/run/docker.sock"
+  script:
+    - echo "===== 🚀 START DEPLOY ====="
+    - docker info
+    - docker pull $IMAGE_NAME:latest
+    - cd $CI_PROJECT_DIR
+    - docker compose down || echo "⚠️ Не было контейнеров для остановки"
+    - docker compose up -d
+    - echo "✅ Деплой завершён"
+    - echo "===== 🚀 END DEPLOY ====="
 
 # -------------------
 # Mirror to GitHub (без refs/pipelines)
