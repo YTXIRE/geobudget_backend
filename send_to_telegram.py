@@ -64,7 +64,12 @@ def send_telegram_message(message: str):
     """Отправить текстовое сообщение в Telegram"""
     try:
         telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        r = requests.post(telegram_url, data={"chat_id": CHAT_ID, "text": message, "disable_web_page_preview": False})
+        r = requests.post(telegram_url, data={
+            "chat_id": CHAT_ID,
+            "text": message,
+            "disable_web_page_preview": False,
+            "parse_mode": "HTML"
+        })
         if r.status_code == 200:
             print("✅ Сообщение отправлено в Telegram")
         else:
@@ -80,5 +85,8 @@ if __name__ == "__main__":
     if uploaded:
         download_url = get_public_url(uploaded)
         if download_url:
-            caption = f"📱 Новая версия GeoBudget Backend доступна для скачивания:\n\n{download_url}"
+            caption = (
+                f"📱 Новая версия GeoBudget Backend доступна для скачивания:<br><br>"
+                f'<a href="{download_url}">Скачать GeoBudget Backend</a>'
+            )
             send_telegram_message(caption)
