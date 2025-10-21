@@ -1,3 +1,14 @@
+# -------------------
+# Глобальные правила запуска
+# -------------------
+workflow:
+  rules:
+    # Запускать только на пуш в ветки
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: always
+    # Не запускать на теги, merge request и другие события
+    - when: never
+
 stages:
   - version
   - tagging
@@ -8,7 +19,6 @@ stages:
   - upload
   - clean
   - notify
-
 
 variables:
   REGISTRY: "localhost:5000"
@@ -36,7 +46,7 @@ versioning:
   before_script:
     - apt-get update && apt-get install -y tzdata
   script:
-    sh versioning.sh
+    - sh versioning.sh
   artifacts:
     paths:
       - version.txt
@@ -48,7 +58,6 @@ versioning:
     - branches
   except:
     - tags
-
 
 # -------------------
 # Tagging
@@ -80,13 +89,17 @@ build:
     - echo "===== 🧹 START BUILD STAGE ====="
     - java -version
     - ./gradlew --version
+    # Сборка jar
     - ./gradlew clean bootJar --stacktrace
-    - echo "✅ Сборка завершена, jar создан"
+    - echo "✅ Сборка завершена"
     # Подставляем версию из version.env
     - source version.env
-    - JAR_NAME="GeoBudgetBackend"
-    - NEW_JAR_NAME="${JAR_NAME%.jar}-$VERSION.jar"
-    - mv build/libs/"$JAR_NAME" build/libs/"$NEW_JAR_NAME"
+    # Находим сгенерированный jar
+    - ORIGINAL_JAR=$(ls build/libs/*.jar | head -n1)
+    - if [ -z "$ORIGINAL_JAR" ]; then echo "❌ JAR не найден!"; exit 1; fi
+    # Переименовываем jar с добавлением версии
+    - NEW_JAR_NAME="GeoBudgetBackend-$VERSION.jar"
+    - mv "$ORIGINAL_JAR" build/libs/"$NEW_JAR_NAME"
     - echo "✅ Jar переименован в $NEW_JAR_NAME"
     - echo "===== 🧹 END BUILD STAGE ====="
   artifacts:
@@ -165,7 +178,6 @@ mirror_to_github:
   except:
     - tags
 
-
 # -------------------
 # 4️⃣ Загрузка в MinIO
 # -------------------
@@ -181,7 +193,6 @@ upload_minio:
     - source version.env
     - echo "Загружаем релиз GeoBudgetBackend_${VERSION}.jar"
   script:
-    # Находим JAR, который был переименован с версией
     - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
     - python upload_minio.py "$JAR_FILE"
   artifacts:
@@ -194,8 +205,6 @@ upload_minio:
   except:
     - tags
 
-
-
 # -------------------
 # 5️⃣ Очистка старых релизов в MinIO
 # -------------------
@@ -206,7 +215,7 @@ cleanup_old_minio:
   needs:
     - job: upload_minio
       artifacts: true
-    - job: build           # ✅ гарантируем наличие version.env
+    - job: build
       artifacts: true
   before_script:
     - pip install minio pytz
@@ -223,7 +232,6 @@ cleanup_old_minio:
   except:
     - tags
 
-
 # -------------------
 # 6️⃣ Уведомление Telegram
 # -------------------
@@ -234,7 +242,7 @@ notify_telegram:
   needs:
     - job: cleanup_old_minio
       artifacts: true
-    - job: build            # ✅ тоже тянем артефакт version.env
+    - job: build
       artifacts: true
   before_script:
     - pip install requests minio pytz
