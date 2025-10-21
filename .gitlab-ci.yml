@@ -1,15 +1,69 @@
 stages:
+  - version
+  - tagging
   - build
   - docker
   - deploy
   - mirror
+  - upload
+  - clean
   - notify
+
 
 variables:
   REGISTRY: "localhost:5000"
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
   DOCKER_TLS_CERTDIR: ""
+  VERSION_FILE: "version.txt"
+  GRADLE_USER_HOME: "/root/.gradle"
+  JAVA_HOME: "/usr/lib/jvm/java-17-openjdk-amd64"
+
+cache:
+  key: "$CACHE_KEY"
+  paths:
+    - $GRADLE_USER_HOME
+  policy: pull-push
+
+# -------------------
+# 1️⃣ Версия
+# -------------------
+versioning:
+  stage: version
+  image: python:3.12
+  tags: [ docker ]
+  variables:
+    PIPELINE_START_TIME: "$CI_PIPELINE_CREATED_AT"
+  before_script:
+    - apt-get update && apt-get install -y tzdata
+  script:
+    sh versioning.sh
+  artifacts:
+    paths:
+      - version.txt
+      - version.env
+    expire_in: 1 week
+    reports:
+      dotenv: version.env
+  only:
+    - branches
+  except:
+    - tags
+
+
+# -------------------
+# Tagging
+# -------------------
+tagging:
+  stage: tagging
+  tags: [ docker ]
+  needs: [ versioning ]
+  script:
+    - sh tagging.sh
+  only:
+    - branches
+  except:
+    - tags
 
 # -------------------
 # Build stage
@@ -30,10 +84,23 @@ build:
     - ./gradlew --version
     - ./gradlew clean bootJar --stacktrace
     - echo "✅ Сборка завершена, jar создан"
+    # Подставляем версию из version.env
+    - source version.env
+    - JAR_NAME="GeoBudgetBackend"
+    - NEW_JAR_NAME="${JAR_NAME%.jar}-$VERSION.jar"
+    - mv build/libs/"$JAR_NAME" build/libs/"$NEW_JAR_NAME"
+    - echo "✅ Jar переименован в $NEW_JAR_NAME"
     - echo "===== 🧹 END BUILD STAGE ====="
   artifacts:
     paths:
       - build/libs/*.jar
+      - version.env
+    expire_in: 1 week
+  only:
+    - branches
+  except:
+    - tags
+
 
 # -------------------
 # Docker build & push
@@ -81,50 +148,113 @@ deploy:
 mirror_to_github:
   stage: mirror
   image: alpine:latest
-  tags:
-    - shell
+  tags: [ docker ]
+  needs:
+    - job: build
+      artifacts: true
   variables:
     GIT_DEPTH: "0"
-    GIT_PACK_THREADS: "1"
-  script:
-    # Устанавливаем git и сертификаты
+  before_script:
     - apk add --no-cache git ca-certificates
-
-    # Настраиваем Git
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
-
-    # Добавляем GitHub remote
+  script:
     - git remote remove github || true
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/YTXIRE/geobudget_backend.git
-
-    # Очистка и репаковка (исключает ошибки index-pack)
-    - git remote prune origin || true
-    - git fetch --all
-    - git gc --prune=now
-    - git repack -a -d --window=1
-
-    # Переключаемся на master
-    - git checkout -B master
-
-    # Отправляем полностью (все ветки и теги)
-    - git push --mirror github
-
-    - echo "✅ Репозиторий успешно зеркалирован на GitHub"
+    - git fetch --all --tags
+    - git push github main:master
+    - git push github --tags
   only:
     - main
-  when: on_success
+  except:
+    - tags
 
 
 # -------------------
-# Отправка в Telegram
+# 4️⃣ Загрузка в MinIO
+# -------------------
+upload_minio:
+  stage: upload
+  image: python:3.12
+  tags: [ docker ]
+  needs:
+    - job: build
+      artifacts: true
+  before_script:
+    - pip install minio
+    - source version.env
+    - echo "Загружаем релиз GeoBudgetBackend_${VERSION}.jar"
+  script:
+    # Находим JAR, который был переименован с версией
+    - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
+    - python upload_minio.py "$JAR_FILE"
+  artifacts:
+    when: always
+    reports:
+      dotenv: version.env
+    expire_in: 1 week
+  only:
+    - branches
+  except:
+    - tags
+
+
+
+# -------------------
+# 5️⃣ Очистка старых релизов в MinIO
+# -------------------
+cleanup_old_minio:
+  stage: clean
+  image: python:3.12
+  tags: [ docker ]
+  needs:
+    - job: upload_minio
+      artifacts: true
+    - job: build           # ✅ гарантируем наличие version.env
+      artifacts: true
+  before_script:
+    - pip install minio pytz
+    - source version.env
+  script:
+    - python cleanup_minio.py
+  artifacts:
+    when: always
+    reports:
+      dotenv: version.env
+    expire_in: 1 week
+  only:
+    - branches
+  except:
+    - tags
+
+
+# -------------------
+# 6️⃣ Уведомление Telegram
 # -------------------
 notify_telegram:
   stage: notify
   image: python:3.12
-  tags:
-    - shell
+  tags: [ docker ]
+  needs:
+    - job: cleanup_old_minio
+      artifacts: true
+    - job: build            # ✅ тоже тянем артефакт version.env
+      artifacts: true
   before_script:
-    - pip install requests minio
+    - pip install requests minio pytz
+    - source version.env
   script:
-    - python send_to_telegram.py
+    - export PIPELINE_END_SEC=$(date +%s)
+    - export PIPELINE_DURATION_SEC=$((PIPELINE_END_SEC - PIPELINE_START_SEC))
+    - echo "PIPELINE_DURATION_SEC=$PIPELINE_DURATION_SEC" >> version.env
+    - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
+    - python send_to_telegram.py "$JAR_FILE"
+  artifacts:
+    when: always
+    reports:
+      dotenv: version.env
+    expire_in: 1 week
+  only:
+    - branches
+  except:
+    - tags

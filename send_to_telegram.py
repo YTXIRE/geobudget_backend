@@ -1,8 +1,10 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from minio import Minio
 from minio.error import S3Error
 import requests
 import os
+import sys
+import pytz
 
 # === Настройки MinIO ===
 MINIO_ENDPOINT = "minio-api.xire.ru"  # публичный домен через Nginx
@@ -22,31 +24,9 @@ client = Minio(
     secure=True,
 )
 
-def delete_old_version(object_name: str):
-    """Удалить старую версию файла, если она есть"""
-    try:
-        found = client.stat_object(MINIO_BUCKET, object_name)
-        if found:
-            client.remove_object(MINIO_BUCKET, object_name)
-            print(f"🗑 Удалена старая версия {object_name}")
-    except S3Error as e:
-        if e.code != "NoSuchKey":
-            print("Ошибка при проверке старой версии:", e)
 
-def upload_file(file_path: str):
-    """Загрузить новую версию файла GeoBudget_app-release.apk"""
-    object_name = "GeoBudget_app.jar"
-    try:
-        delete_old_version(object_name)
-        client.fput_object(MINIO_BUCKET, object_name, file_path)
-        print(f"✅ Загружен новый файл: {object_name}")
-        return object_name
-    except S3Error as e:
-        print("Ошибка загрузки:", e)
-        return None
-
-def get_public_url(object_name: str):
-    """Создать временную публичную ссылку на скачивание"""
+def get_public_url(object_name: str) -> str | None:
+    """Создать временную публичную ссылку на скачивание файла."""
     try:
         url = client.get_presigned_url(
             "GET",
@@ -57,36 +37,87 @@ def get_public_url(object_name: str):
         print(f"🔗 Ссылка на скачивание: {url}")
         return url
     except S3Error as e:
-        print("Ошибка генерации ссылки:", e)
+        print(f"❌ Ошибка генерации ссылки: {e}")
         return None
 
+
 def send_telegram_message(message: str):
-    """Отправить текстовое сообщение в Telegram"""
+    """Отправить сообщение в Telegram."""
     try:
         telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         r = requests.post(telegram_url, data={
             "chat_id": CHAT_ID,
             "text": message,
-            "disable_web_page_preview": False,
-            "parse_mode": "HTML"
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False
         })
         if r.status_code == 200:
             print("✅ Сообщение отправлено в Telegram")
         else:
-            print("❌ Ошибка Telegram:", r.status_code, r.text)
+            print(f"❌ Ошибка Telegram ({r.status_code}): {r.text}")
     except Exception as e:
-        print("Ошибка при отправке в Telegram:", e)
+        print(f"❌ Ошибка при отправке в Telegram: {e}")
 
-# === Основной поток ===
+
 if __name__ == "__main__":
-    local_file = "build/libs/geobudget-1.0.0.jar"
+    if len(sys.argv) < 2:
+        print("❌ Использование: python send_to_telegram.py <имя_файла>")
+        sys.exit(1)
 
-    uploaded = upload_file(local_file)
-    if uploaded:
-        download_url = get_public_url(uploaded)
-        if download_url:
-            caption = (
-                f"📱 Новая версия GeoBudget Backend доступна для скачивания:\n"
-                f'⬇️ <a href="{download_url}">Скачать GeoBudget Backend</a>'
-            )
-            send_telegram_message(caption)
+    object_name = sys.argv[1]
+    download_url = get_public_url(object_name)
+
+    if not download_url:
+        print("❌ Не удалось получить ссылку на файл в MinIO.")
+        sys.exit(1)
+
+    # ==== Переменные окружения ====
+    VERSION = (
+        object_name.split("_")[-1].split(".apk")[0]
+        if object_name.endswith(".apk")
+        else object_name.split("_")[-1].split(".aab")[0]
+    )
+
+    # Формат даты: "13 октября 2025, 15:29 (МСК)"
+    BUILD_DATE = datetime.now(pytz.timezone("Europe/Moscow")).strftime("%d.%m.%Y, %H:%M (МСК)")
+
+    CI_COMMIT_BRANCH = os.getenv("CI_COMMIT_BRANCH", "unknown")
+    CI_COMMIT_SHA = os.getenv("CI_COMMIT_SHA", "")[:8]
+    CI_PIPELINE_URL = os.getenv("CI_PIPELINE_URL", "").replace("http://10.8.0.2", "https://gitlab.xire.ru")
+    CI_PROJECT_URL = os.getenv("CI_PROJECT_URL", "")
+    CI_COMMIT_URL = f"https://gitlab.xire.ru/-/commit/{CI_COMMIT_SHA}" if CI_PROJECT_URL and CI_COMMIT_SHA else ""
+
+    # Корректное вычисление времени пайплайна
+    try:
+        duration_sec = int(float(os.getenv("PIPELINE_DURATION_SEC", "0")))
+    except ValueError:
+        duration_sec = 0
+
+    if duration_sec > 0:
+        duration = timedelta(seconds=duration_sec)
+        hours, remainder = divmod(duration_sec, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration_str = f"{hours} ч {minutes} мин {seconds} сек"
+    else:
+        duration_str = "меньше минуты"
+
+    # ==== Тип файла ====
+    file_type = "APK" if object_name.endswith(".apk") else "AAB" if object_name.endswith(".aab") else "Файл"
+
+    caption = (
+        f"🚀 <b>GeoBudget Mobile — новая сборка!</b>\n\n"
+        f"📦 <b>Версия:</b> {VERSION}\n"
+        f"🕓 <b>Дата сборки:</b> {BUILD_DATE}\n"
+        f"⏱ <b>Длительность pipeline:</b> {duration_str}\n"
+        f"🌿 <b>Ветка:</b> {CI_COMMIT_BRANCH}\n"
+        f"🔖 <b>Тип файла:</b> {file_type}\n\n"
+        f"📥 <b>Скачать:</b> <a href=\"{download_url}\">{object_name}</a>\n\n"
+        f"🔗 <b>Commit:</b> <a href=\"{CI_COMMIT_URL}\">{CI_COMMIT_SHA}</a>\n"
+        f"⚙️ <b>Pipeline:</b> <a href=\"{CI_PIPELINE_URL}\">Открыть в GitLab</a>\n"
+        f"🏷 <b>Тег GitLab:</b> <a href=\"https://gitlab.xire.ru/geobudget/mobile/-/tags/v{VERSION}\">v{VERSION}</a>\n"
+        f"🏷 <b>Тег GitHub:</b> <a href=\"https://github.com/YTXIRE/geobudget_mobile/releases/tag/v{VERSION}\">v{VERSION}</a>\n"
+        f"🐙 <b>GitHub репозиторий:</b> <a href=\"https://github.com/YTXIRE/geobudget_mobile/tree/main\">Код на GitHub</a>\n"
+        f"🐙 <b>GitLab репозиторий:</b> <a href=\"https://gitlab.xire.ru/geobudget/mobile\">Код на GitLab</a>\n"
+    )
+
+    send_telegram_message(caption)
