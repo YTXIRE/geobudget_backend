@@ -70,8 +70,7 @@ tagging:
 # -------------------
 build:
   stage: build
-  tags:
-    - shell
+  tags: [ docker ]
   image: eclipse-temurin:24-jdk
   cache:
     key: gradle-cache
@@ -107,8 +106,7 @@ build:
 # -------------------
 docker_build_push:
   stage: docker
-  tags:
-    - docker
+  tags: [ docker ]
   image: docker:25.0.3
   services: [ ]
   variables:
@@ -126,8 +124,7 @@ docker_build_push:
 # -------------------
 deploy:
   stage: deploy
-  tags:
-    - shell
+  tags: [ docker ]
   image: docker:25.0.3
   services: [ ]
   variables:
