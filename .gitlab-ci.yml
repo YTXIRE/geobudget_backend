@@ -33,7 +33,7 @@ versioning:
   variables:
     PIPELINE_START_TIME: "$CI_PIPELINE_CREATED_AT"
   before_script:
-    - apt-get update && apt-get install -y tzdata
+    - apt-get update && apt-get install -y tzdata jq
   script:
     - sh versioning.sh
   artifacts:
