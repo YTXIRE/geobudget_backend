@@ -77,9 +77,9 @@ build:
     - ./gradlew clean bootJar --stacktrace
     - echo "✅ Сборка завершена, jar создан"
     - source version.env
-    - JAR_NAME="GeoBudgetBackend"
-    - NEW_JAR_NAME="${JAR_NAME%.jar}-$VERSION.jar"
-    - mv build/libs/"$JAR_NAME".jar build/libs/"$NEW_JAR_NAME"
+    - JAR_FILE=$(ls build/libs/*.jar | grep -v "original")
+    - NEW_JAR_NAME="GeoBudgetBackend-$VERSION.jar"
+    - mv "$JAR_FILE" build/libs/"$NEW_JAR_NAME"
     - echo "✅ Jar переименован в $NEW_JAR_NAME"
     - echo "===== 🧹 END BUILD STAGE ====="
   artifacts:
@@ -89,6 +89,7 @@ build:
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
+
 
 # -------------------
 # Docker build & push
