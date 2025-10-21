@@ -73,7 +73,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # ==== Переменные окружения ====
-    VERSION = (object_name.split("-")[-1].split(".jar")[0]
+    VERSION = object_name.split("-")[-1].split(".jar")[0]
 
     # Формат даты: "13 октября 2025, 15:29 (МСК)"
     BUILD_DATE = datetime.now(pytz.timezone("Europe/Moscow")).strftime("%d.%m.%Y, %H:%M (МСК)")
