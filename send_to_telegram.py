@@ -66,17 +66,14 @@ if __name__ == "__main__":
 
     object_name = sys.argv[1]
     download_url = get_public_url(object_name)
+    object_name = object_name.split("/")[-1]
 
     if not download_url:
         print("❌ Не удалось получить ссылку на файл в MinIO.")
         sys.exit(1)
 
     # ==== Переменные окружения ====
-    VERSION = (
-        object_name.split("_")[-1].split(".apk")[0]
-        if object_name.endswith(".apk")
-        else object_name.split("_")[-1].split(".aab")[0]
-    )
+    VERSION = (object_name.split("-")[-1].split(".jar")[0]
 
     # Формат даты: "13 октября 2025, 15:29 (МСК)"
     BUILD_DATE = datetime.now(pytz.timezone("Europe/Moscow")).strftime("%d.%m.%Y, %H:%M (МСК)")
@@ -102,10 +99,10 @@ if __name__ == "__main__":
         duration_str = "меньше минуты"
 
     # ==== Тип файла ====
-    file_type = "APK" if object_name.endswith(".apk") else "AAB" if object_name.endswith(".aab") else "Файл"
+    file_type = "JAR"
 
     caption = (
-        f"🚀 <b>GeoBudget Mobile — новая сборка!</b>\n\n"
+        f"🚀 <b>GeoBudget Backend — новая сборка!</b>\n\n"
         f"📦 <b>Версия:</b> {VERSION}\n"
         f"🕓 <b>Дата сборки:</b> {BUILD_DATE}\n"
         f"⏱ <b>Длительность pipeline:</b> {duration_str}\n"
@@ -114,10 +111,10 @@ if __name__ == "__main__":
         f"📥 <b>Скачать:</b> <a href=\"{download_url}\">{object_name}</a>\n\n"
         f"🔗 <b>Commit:</b> <a href=\"{CI_COMMIT_URL}\">{CI_COMMIT_SHA}</a>\n"
         f"⚙️ <b>Pipeline:</b> <a href=\"{CI_PIPELINE_URL}\">Открыть в GitLab</a>\n"
-        f"🏷 <b>Тег GitLab:</b> <a href=\"https://gitlab.xire.ru/geobudget/mobile/-/tags/v{VERSION}\">v{VERSION}</a>\n"
-        f"🏷 <b>Тег GitHub:</b> <a href=\"https://github.com/YTXIRE/geobudget_mobile/releases/tag/v{VERSION}\">v{VERSION}</a>\n"
-        f"🐙 <b>GitHub репозиторий:</b> <a href=\"https://github.com/YTXIRE/geobudget_mobile/tree/main\">Код на GitHub</a>\n"
-        f"🐙 <b>GitLab репозиторий:</b> <a href=\"https://gitlab.xire.ru/geobudget/mobile\">Код на GitLab</a>\n"
+        f"🏷 <b>Тег GitLab:</b> <a href=\"https://gitlab.xire.ru/geobudget/backend/-/tags/v{VERSION}\">v{VERSION}</a>\n"
+        f"🏷 <b>Тег GitHub:</b> <a href=\"https://github.com/YTXIRE/geobudget_backend/releases/tag/v{VERSION}\">v{VERSION}</a>\n"
+        f"🐙 <b>GitHub репозиторий:</b> <a href=\"https://github.com/YTXIRE/geobudget_backend/tree/main\">Код на GitHub</a>\n"
+        f"🐙 <b>GitLab репозиторий:</b> <a href=\"https://gitlab.xire.ru/geobudget/backend\">Код на GitLab</a>\n"
     )
 
     send_telegram_message(caption)
