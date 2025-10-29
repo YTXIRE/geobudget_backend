@@ -176,7 +176,7 @@ mirror_to_github:
     - git remote remove github || true
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/YTXIRE/geobudget_backend.git
     - git fetch --all --tags
-    - git push github main:master
+    - git push github HEAD:master --force
     - git push github --tags
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
