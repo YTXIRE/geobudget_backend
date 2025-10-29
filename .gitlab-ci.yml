@@ -14,9 +14,9 @@ variables:
   IMAGE_NAME: "$REGISTRY/geobudget-backend"
   COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
   DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "unix:///var/run/docker.sock"
   VERSION_FILE: "version.txt"
   GRADLE_USER_HOME: "/root/.gradle"
-  DOCKER_HOST: "/var/run/docker.sock"
 
 cache:
   key: "$CACHE_KEY"
