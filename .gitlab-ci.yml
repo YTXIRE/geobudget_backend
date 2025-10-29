@@ -4,6 +4,7 @@ stages:
 test-docker:
   image: docker:25.0.3
   stage: test
+  tags: [ docker ]
   script:
     - docker info
 
