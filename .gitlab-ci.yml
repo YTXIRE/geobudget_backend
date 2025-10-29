@@ -24,17 +24,18 @@ cache:
   policy: pull-push
 
 # -------------------
-# 1️⃣ Версия
+# 1️⃣ Versioning
 # -------------------
 versioning:
   stage: version
   image: python:3.12
   tags: [ docker ]
   variables:
-    PIPELINE_START_TIME: "$CI_PIPELINE_CREATED_AT"
+    PIPELINE_START_SEC: "$CI_PIPELINE_CREATED_AT"
   before_script:
     - apt-get update && apt-get install -y tzdata jq
   script:
+    - set -e
     - sh versioning.sh
   artifacts:
     paths:
@@ -47,7 +48,7 @@ versioning:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Tagging
+# 2️⃣ Tagging
 # -------------------
 tagging:
   stage: tagging
@@ -57,12 +58,13 @@ tagging:
       artifacts: true
   image: python:3.12
   script:
+    - set -e
     - bash tagging.sh
   rules:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Build stage
+# 3️⃣ Build
 # -------------------
 build:
   stage: build
@@ -74,6 +76,7 @@ build:
       - .gradle/wrapper
       - .gradle/caches
   script:
+    - set -e
     - echo "===== 🧹 START BUILD STAGE ====="
     - java -version
     - ./gradlew --version
@@ -94,16 +97,21 @@ build:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Docker build & push
+# 4️⃣ Docker build & push
 # -------------------
 docker_build_push:
   stage: docker
   tags: [ docker ]
   image: docker:25.0.3
-  services: []
+  services:
+    - name: docker:25.0.3-dind
+      command: ["--experimental", "--storage-driver=overlay2"]
   variables:
-    DOCKER_HOST: "unix:///var/run/docker.sock"
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  privileged: true
   script:
+    - set -e
     - echo "===== 🐳 START DOCKER BUILD ====="
     - docker info
     - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
@@ -114,21 +122,26 @@ docker_build_push:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Deploy stage
+# 5️⃣ Deploy
 # -------------------
 deploy:
   stage: deploy
   tags: [ docker ]
   image: docker:25.0.3
-  services: []
+  services:
+    - name: docker:25.0.3-dind
+      command: ["--experimental", "--storage-driver=overlay2"]
   variables:
-    DOCKER_HOST: "unix:///var/run/docker.sock"
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  privileged: true
   script:
+    - set -e
     - echo "===== 🚀 START DEPLOY ====="
     - docker info
     - docker pull $IMAGE_NAME:latest
     - cd $CI_PROJECT_DIR
-    - docker compose down || echo "⚠️ Не было контейнеров для остановки"
+    - docker compose down
     - docker compose up -d
     - echo "✅ Деплой завершён"
     - echo "===== 🚀 END DEPLOY ====="
@@ -136,7 +149,7 @@ deploy:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Mirror to GitHub
+# 6️⃣ Mirror to GitHub
 # -------------------
 mirror_to_github:
   stage: mirror
@@ -148,6 +161,7 @@ mirror_to_github:
   variables:
     GIT_DEPTH: "0"
   before_script:
+    - set -e
     - apk add --no-cache git ca-certificates
     - git config --global user.email "codavium@gmail.com"
     - git config --global user.name "GitLab CI"
@@ -161,7 +175,7 @@ mirror_to_github:
     - if: $CI_COMMIT_BRANCH == "main"
 
 # -------------------
-# Upload to MinIO
+# 7️⃣ Upload to MinIO
 # -------------------
 upload_minio:
   stage: upload
@@ -171,6 +185,7 @@ upload_minio:
     - job: build
       artifacts: true
   before_script:
+    - set -e
     - pip install minio
     - source version.env
     - echo "Загружаем релиз GeoBudgetBackend_${VERSION}.jar"
@@ -186,7 +201,7 @@ upload_minio:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Cleanup old releases in MinIO
+# 8️⃣ Cleanup old releases in MinIO
 # -------------------
 cleanup_old_minio:
   stage: clean
@@ -198,6 +213,7 @@ cleanup_old_minio:
     - job: build
       artifacts: true
   before_script:
+    - set -e
     - pip install minio pytz
     - source version.env
   script:
@@ -211,7 +227,7 @@ cleanup_old_minio:
     - if: $CI_COMMIT_BRANCH
 
 # -------------------
-# Notify Telegram
+# 9️⃣ Notify Telegram
 # -------------------
 notify_telegram:
   stage: notify
@@ -223,6 +239,7 @@ notify_telegram:
     - job: build
       artifacts: true
   before_script:
+    - set -e
     - pip install requests minio pytz
     - source version.env
   script:
