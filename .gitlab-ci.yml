@@ -56,6 +56,8 @@ tagging:
     - job: versioning
       artifacts: true
   script:
+    - echo "Version env exists:"
+    - ls -l version.env
     - sh tagging.sh
   rules:
     - if: $CI_COMMIT_BRANCH
