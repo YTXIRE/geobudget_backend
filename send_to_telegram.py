@@ -65,8 +65,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     object_name = sys.argv[1]
-    download_url = get_public_url(object_name)
     object_name = object_name.split("/")[-1]
+    download_url = get_public_url(object_name)
 
     if not download_url:
         print("❌ Не удалось получить ссылку на файл в MinIO.")
