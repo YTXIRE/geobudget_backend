@@ -1,274 +1,264 @@
 stages:
-  - test
+  - version
+  - tagging
+  - build
+  - docker
+  - deploy
+  - mirror
+  - upload
+  - clean
+  - notify
 
-test-docker:
-  image: docker:25.0.3
-  stage: test
+variables:
+  REGISTRY: "localhost:5000"
+  IMAGE_NAME: "$REGISTRY/geobudget-backend"
+  COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
+  DOCKER_TLS_CERTDIR: ""
+  VERSION_FILE: "version.txt"
+  GRADLE_USER_HOME: "/root/.gradle"
+  DOCKER_HOST: "/var/run/docker.sock"
+
+cache:
+  key: "$CACHE_KEY"
+  paths:
+    - $GRADLE_USER_HOME
+  policy: pull-push
+
+# -------------------
+# 1️⃣ Versioning
+# -------------------
+versioning:
+  stage: version
+  image: python:3.12
   tags: [ docker ]
+  variables:
+    PIPELINE_START_TIME: "$CI_PIPELINE_CREATED_AT"
+  before_script:
+    - set -e
+    - apt-get update && apt-get install -y tzdata jq
   script:
-    - docker info
+    - sh versioning.sh
+  artifacts:
+    paths:
+      - version.txt
+      - version.env
+    expire_in: 1 week
+    reports:
+      dotenv: version.env
+  rules:
+    - if: $CI_COMMIT_BRANCH
 
-#stages:
-#  - version
-#  - tagging
-#  - build
-#  - docker
-#  - deploy
-#  - mirror
-#  - upload
-#  - clean
-#  - notify
-#
-#variables:
-#  REGISTRY: "localhost:5000"
-#  IMAGE_NAME: "$REGISTRY/geobudget-backend"
-#  COMMIT_TAG: "$CI_COMMIT_SHORT_SHA"
-#  DOCKER_TLS_CERTDIR: ""
-#  VERSION_FILE: "version.txt"
-#  GRADLE_USER_HOME: "/root/.gradle"
-#  DOCKER_HOST: "/var/run/docker.sock"
-#
-#cache:
-#  key: "$CACHE_KEY"
-#  paths:
-#    - $GRADLE_USER_HOME
-#  policy: pull-push
-#
-## -------------------
-## 1️⃣ Versioning
-## -------------------
-#versioning:
-#  stage: version
-#  image: python:3.12
-#  tags: [ docker ]
-#  variables:
-#    PIPELINE_START_TIME: "$CI_PIPELINE_CREATED_AT"
-#  before_script:
-#    - set -e
-#    - apt-get update && apt-get install -y tzdata jq
-#  script:
-#    - sh versioning.sh
-#  artifacts:
-#    paths:
-#      - version.txt
-#      - version.env
-#    expire_in: 1 week
-#    reports:
-#      dotenv: version.env
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 2️⃣ Tagging
-## -------------------
-#tagging:
-#  stage: tagging
-#  tags: [ docker ]
-#  needs:
-#    - job: versioning
-#      artifacts: true
-#  image: python:3.12
-#  before_script:
-#    - set -e
-#    - test -f version.env && source version.env || echo "version.env not found"
-#  script:
-#    - ls -l version.env
-#    - bash tagging.sh
-#  artifacts:
-#    paths:
-#      - version.env
-#    expire_in: 1 week
-#    reports:
-#      dotenv: version.env
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 3️⃣ Build
-## -------------------
-#build:
-#  stage: build
-#  tags: [ docker ]
-#  image: eclipse-temurin:24-jdk
-#  needs:
-#    - job: tagging
-#      artifacts: true
-#  cache:
-#    key: gradle-cache
-#    paths:
-#      - .gradle/wrapper
-#      - .gradle/caches
-#  before_script:
-#    - set -e
-#    - test -f version.env && source version.env || echo "version.env not found"
-#  script:
-#    - echo "===== 🧹 START BUILD STAGE ====="
-#    - java -version
-#    - ./gradlew --version
-#    - ./gradlew clean bootJar --stacktrace
-#    - echo "✅ Сборка завершена, jar создан"
-#    - JAR_FILE=$(ls build/libs/*.jar | grep -v "original")
-#    - NEW_JAR_NAME="GeoBudgetBackend-$VERSION.jar"
-#    - mv "$JAR_FILE" build/libs/"$NEW_JAR_NAME"
-#    - echo "✅ Jar переименован в $NEW_JAR_NAME"
-#    - echo "===== 🧹 END BUILD STAGE ====="
-#  artifacts:
-#    paths:
-#      - build/libs/*.jar
-#      - version.env
-#    expire_in: 1 week
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 4️⃣ Docker build & push
-## -------------------
-#docker_build_push:
-#  stage: docker
-#  tags: [ docker ]
-#  image: docker:25.0.3
-#  needs:
-#    - job: build
-#      artifacts: true
-#  before_script:
-#    - set -e
-#  script:
-#    - echo "===== 🐳 START DOCKER BUILD ====="
-#    - docker info
-#    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
-#    - docker push $IMAGE_NAME:latest
-#    - docker push $IMAGE_NAME:$COMMIT_TAG
-#    - echo "===== 🐳 END DOCKER BUILD ====="
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 5️⃣ Deploy
-## -------------------
-#deploy:
-#  stage: deploy
-#  tags: [ docker ]
-#  image: docker:25.0.3
-#  needs:
-#    - job: docker_build_push
-#      artifacts: true
-#  before_script:
-#    - set -e
-#  script:
-#    - echo "===== 🚀 START DEPLOY ====="
-#    - docker info
-#    - docker pull $IMAGE_NAME:latest
-#    - cd $CI_PROJECT_DIR
-#    - docker compose down
-#    - docker compose up -d
-#    - echo "✅ Деплой завершён"
-#    - echo "===== 🚀 END DEPLOY ====="
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 6️⃣ Mirror to GitHub
-## -------------------
-#mirror_to_github:
-#  stage: mirror
-#  image: alpine:latest
-#  tags: [ docker ]
-#  needs:
-#    - job: build
-#      artifacts: true
-#  before_script:
-#    - set -e
-#    - apk add --no-cache git ca-certificates
-#    - git config --global user.email "codavium@gmail.com"
-#    - git config --global user.name "GitLab CI"
-#    - test -f version.env && source version.env || echo "version.env not found"
-#  script:
-#    - git remote remove github || true
-#    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/YTXIRE/geobudget_backend.git
-#    - git fetch --all --tags
-#    - git push github main:master
-#    - git push github --tags
-#  rules:
-#    - if: $CI_COMMIT_BRANCH == "main"
-#
-## -------------------
-## 7️⃣ Upload to MinIO
-## -------------------
-#upload_minio:
-#  stage: upload
-#  image: python:3.12
-#  tags: [ docker ]
-#  needs:
-#    - job: build
-#      artifacts: true
-#  before_script:
-#    - set -e
-#    - pip install minio
-#    - test -f version.env && source version.env || echo "version.env not found"
-#  script:
-#    - echo "Загружаем релиз GeoBudgetBackend_${VERSION}.jar"
-#    - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
-#    - python upload_minio.py "$JAR_FILE"
-#  artifacts:
-#    when: always
-#    reports:
-#      dotenv: version.env
-#    expire_in: 1 week
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 8️⃣ Cleanup old releases in MinIO
-## -------------------
-#cleanup_old_minio:
-#  stage: clean
-#  image: python:3.12
-#  tags: [ docker ]
-#  needs:
-#    - job: upload_minio
-#      artifacts: true
-#    - job: build
-#      artifacts: true
-#  before_script:
-#    - set -e
-#    - pip install minio pytz
-#    - test -f version.env && source version.env || echo "version.env not found"
-#  script:
-#    - python cleanup_minio.py
-#  artifacts:
-#    when: always
-#    reports:
-#      dotenv: version.env
-#    expire_in: 1 week
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
-#
-## -------------------
-## 9️⃣ Notify Telegram
-## -------------------
-#notify_telegram:
-#  stage: notify
-#  image: python:3.12
-#  tags: [ docker ]
-#  needs:
-#    - job: cleanup_old_minio
-#      artifacts: true
-#    - job: build
-#      artifacts: true
-#  before_script:
-#    - set -e
-#    - pip install requests minio pytz
-#    - test -f version.env && source version.env || echo "version.env not found"
-#  script:
-#    - export PIPELINE_END_SEC=$(date +%s)
-#    - export PIPELINE_DURATION_SEC=$((PIPELINE_END_SEC - PIPELINE_START_SEC))
-#    - echo "PIPELINE_DURATION_SEC=$PIPELINE_DURATION_SEC" >> version.env
-#    - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
-#    - python send_to_telegram.py "$JAR_FILE"
-#  artifacts:
-#    when: always
-#    reports:
-#      dotenv: version.env
-#    expire_in: 1 week
-#  rules:
-#    - if: $CI_COMMIT_BRANCH
+# -------------------
+# 2️⃣ Tagging
+# -------------------
+tagging:
+  stage: tagging
+  tags: [ docker ]
+  needs:
+    - job: versioning
+      artifacts: true
+  image: python:3.12
+  before_script:
+    - set -e
+    - test -f version.env && source version.env || echo "version.env not found"
+  script:
+    - ls -l version.env
+    - bash tagging.sh
+  artifacts:
+    paths:
+      - version.env
+    expire_in: 1 week
+    reports:
+      dotenv: version.env
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# -------------------
+# 3️⃣ Build
+# -------------------
+build:
+  stage: build
+  tags: [ docker ]
+  image: eclipse-temurin:24-jdk
+  needs:
+    - job: tagging
+      artifacts: true
+  cache:
+    key: gradle-cache
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+  before_script:
+    - set -e
+    - test -f version.env && source version.env || echo "version.env not found"
+  script:
+    - echo "===== 🧹 START BUILD STAGE ====="
+    - java -version
+    - ./gradlew --version
+    - ./gradlew clean bootJar --stacktrace
+    - echo "✅ Сборка завершена, jar создан"
+    - JAR_FILE=$(ls build/libs/*.jar | grep -v "original")
+    - NEW_JAR_NAME="GeoBudgetBackend-$VERSION.jar"
+    - mv "$JAR_FILE" build/libs/"$NEW_JAR_NAME"
+    - echo "✅ Jar переименован в $NEW_JAR_NAME"
+    - echo "===== 🧹 END BUILD STAGE ====="
+  artifacts:
+    paths:
+      - build/libs/*.jar
+      - version.env
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# -------------------
+# 4️⃣ Docker build & push
+# -------------------
+docker_build_push:
+  stage: docker
+  tags: [ docker ]
+  image: docker:25.0.3
+  needs:
+    - job: build
+      artifacts: true
+  before_script:
+    - set -e
+  script:
+    - echo "===== 🐳 START DOCKER BUILD ====="
+    - docker info
+    - docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_TAG .
+    - docker push $IMAGE_NAME:latest
+    - docker push $IMAGE_NAME:$COMMIT_TAG
+    - echo "===== 🐳 END DOCKER BUILD ====="
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# -------------------
+# 5️⃣ Deploy
+# -------------------
+deploy:
+  stage: deploy
+  tags: [ docker ]
+  image: docker:25.0.3
+  needs:
+    - job: docker_build_push
+      artifacts: true
+  before_script:
+    - set -e
+  script:
+    - echo "===== 🚀 START DEPLOY ====="
+    - docker info
+    - docker pull $IMAGE_NAME:latest
+    - cd $CI_PROJECT_DIR
+    - docker compose down
+    - docker compose up -d
+    - echo "✅ Деплой завершён"
+    - echo "===== 🚀 END DEPLOY ====="
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# -------------------
+# 6️⃣ Mirror to GitHub
+# -------------------
+mirror_to_github:
+  stage: mirror
+  image: alpine:latest
+  tags: [ docker ]
+  needs:
+    - job: build
+      artifacts: true
+  before_script:
+    - set -e
+    - apk add --no-cache git ca-certificates
+    - git config --global user.email "codavium@gmail.com"
+    - git config --global user.name "GitLab CI"
+    - test -f version.env && source version.env || echo "version.env not found"
+  script:
+    - git remote remove github || true
+    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/YTXIRE/geobudget_backend.git
+    - git fetch --all --tags
+    - git push github main:master
+    - git push github --tags
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# -------------------
+# 7️⃣ Upload to MinIO
+# -------------------
+upload_minio:
+  stage: upload
+  image: python:3.12
+  tags: [ docker ]
+  needs:
+    - job: build
+      artifacts: true
+  before_script:
+    - set -e
+    - pip install minio
+    - test -f version.env && source version.env || echo "version.env not found"
+  script:
+    - echo "Загружаем релиз GeoBudgetBackend_${VERSION}.jar"
+    - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
+    - python upload_minio.py "$JAR_FILE"
+  artifacts:
+    when: always
+    reports:
+      dotenv: version.env
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# -------------------
+# 8️⃣ Cleanup old releases in MinIO
+# -------------------
+cleanup_old_minio:
+  stage: clean
+  image: python:3.12
+  tags: [ docker ]
+  needs:
+    - job: upload_minio
+      artifacts: true
+    - job: build
+      artifacts: true
+  before_script:
+    - set -e
+    - pip install minio pytz
+    - test -f version.env && source version.env || echo "version.env not found"
+  script:
+    - python cleanup_minio.py
+  artifacts:
+    when: always
+    reports:
+      dotenv: version.env
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# -------------------
+# 9️⃣ Notify Telegram
+# -------------------
+notify_telegram:
+  stage: notify
+  image: python:3.12
+  tags: [ docker ]
+  needs:
+    - job: cleanup_old_minio
+      artifacts: true
+    - job: build
+      artifacts: true
+  before_script:
+    - set -e
+    - pip install requests minio pytz
+    - test -f version.env && source version.env || echo "version.env not found"
+  script:
+    - export PIPELINE_END_SEC=$(date +%s)
+    - export PIPELINE_DURATION_SEC=$((PIPELINE_END_SEC - PIPELINE_START_SEC))
+    - echo "PIPELINE_DURATION_SEC=$PIPELINE_DURATION_SEC" >> version.env
+    - JAR_FILE=$(ls build/libs/GeoBudgetBackend-*.jar)
+    - python send_to_telegram.py "$JAR_FILE"
+  artifacts:
+    when: always
+    reports:
+      dotenv: version.env
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
