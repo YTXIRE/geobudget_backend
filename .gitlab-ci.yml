@@ -16,6 +16,7 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   VERSION_FILE: "version.txt"
   GRADLE_USER_HOME: "/root/.gradle"
+  DOCKER_HOST: "unix:///var/run/docker.sock"
 
 cache:
   key: "$CACHE_KEY"
@@ -55,7 +56,6 @@ tagging:
   tags: [ docker ]
   needs:
     - job: versioning
-      artifacts: true
   image: python:3.12
   script:
     - set -e
@@ -76,6 +76,8 @@ build:
     paths:
       - .gradle/wrapper
       - .gradle/caches
+  needs:
+    - job: tagging
   script:
     - set -e
     - echo "===== 🧹 START BUILD STAGE ====="
@@ -104,11 +106,10 @@ docker_build_push:
   stage: docker
   tags: [ docker ]
   image: docker:25.0.3
-  services:
-    - name: docker:25.0.3-dind
-      command: ["--experimental", "--storage-driver=overlay2"]
+  needs:
+    - job: build
   variables:
-    DOCKER_HOST: tcp://docker:2375
+    DOCKER_HOST: "unix:///var/run/docker.sock"
     DOCKER_TLS_CERTDIR: ""
   script:
     - set -e
@@ -128,11 +129,10 @@ deploy:
   stage: deploy
   tags: [ docker ]
   image: docker:25.0.3
-  services:
-    - name: docker:25.0.3-dind
-      command: ["--experimental", "--storage-driver=overlay2"]
+  needs:
+    - job: docker_build_push
   variables:
-    DOCKER_HOST: tcp://docker:2375
+    DOCKER_HOST: "unix:///var/run/docker.sock"
     DOCKER_TLS_CERTDIR: ""
   script:
     - set -e
@@ -156,7 +156,6 @@ mirror_to_github:
   tags: [ docker ]
   needs:
     - job: build
-      artifacts: true
   variables:
     GIT_DEPTH: "0"
   before_script:
@@ -182,7 +181,6 @@ upload_minio:
   tags: [ docker ]
   needs:
     - job: build
-      artifacts: true
   before_script:
     - set -e
     - pip install minio
@@ -208,9 +206,7 @@ cleanup_old_minio:
   tags: [ docker ]
   needs:
     - job: upload_minio
-      artifacts: true
     - job: build
-      artifacts: true
   before_script:
     - set -e
     - pip install minio pytz
@@ -234,9 +230,7 @@ notify_telegram:
   tags: [ docker ]
   needs:
     - job: cleanup_old_minio
-      artifacts: true
     - job: build
-      artifacts: true
   before_script:
     - set -e
     - pip install requests minio pytz
