@@ -55,10 +55,9 @@ tagging:
   needs:
     - job: versioning
       artifacts: true
+  image: python:3.12
   script:
-    - echo "Version env exists:"
-    - ls -l version.env
-    - sh tagging.sh
+    - bash tagging.sh
   rules:
     - if: $CI_COMMIT_BRANCH
 
@@ -93,7 +92,6 @@ build:
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
-
 
 # -------------------
 # Docker build & push
