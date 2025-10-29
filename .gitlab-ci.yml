@@ -16,7 +16,6 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   VERSION_FILE: "version.txt"
   GRADLE_USER_HOME: "/root/.gradle"
-  DOCKER_HOST: "unix:///var/run/docker.sock"
 
 cache:
   key: "$CACHE_KEY"
@@ -56,11 +55,18 @@ tagging:
   tags: [ docker ]
   needs:
     - job: versioning
+      artifacts: true
   image: python:3.12
   script:
     - set -e
     - ls -l version.env
     - bash tagging.sh
+  artifacts:
+    paths:
+      - version.env
+    expire_in: 1 week
+    reports:
+      dotenv: version.env
   rules:
     - if: $CI_COMMIT_BRANCH
 
@@ -71,13 +77,14 @@ build:
   stage: build
   tags: [ docker ]
   image: eclipse-temurin:24-jdk
+  needs:
+    - job: tagging
+      artifacts: true
   cache:
     key: gradle-cache
     paths:
       - .gradle/wrapper
       - .gradle/caches
-  needs:
-    - job: tagging
   script:
     - set -e
     - echo "===== 🧹 START BUILD STAGE ====="
@@ -108,8 +115,12 @@ docker_build_push:
   image: docker:25.0.3
   needs:
     - job: build
+      artifacts: true
+  services:
+    - name: docker:25.0.3-dind
+      command: ["--experimental", "--storage-driver=overlay2"]
   variables:
-    DOCKER_HOST: "unix:///var/run/docker.sock"
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
     - set -e
@@ -131,8 +142,12 @@ deploy:
   image: docker:25.0.3
   needs:
     - job: docker_build_push
+      artifacts: true
+  services:
+    - name: docker:25.0.3-dind
+      command: ["--experimental", "--storage-driver=overlay2"]
   variables:
-    DOCKER_HOST: "unix:///var/run/docker.sock"
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
     - set -e
@@ -156,6 +171,7 @@ mirror_to_github:
   tags: [ docker ]
   needs:
     - job: build
+      artifacts: true
   variables:
     GIT_DEPTH: "0"
   before_script:
@@ -181,6 +197,7 @@ upload_minio:
   tags: [ docker ]
   needs:
     - job: build
+      artifacts: true
   before_script:
     - set -e
     - pip install minio
@@ -206,7 +223,9 @@ cleanup_old_minio:
   tags: [ docker ]
   needs:
     - job: upload_minio
+      artifacts: true
     - job: build
+      artifacts: true
   before_script:
     - set -e
     - pip install minio pytz
@@ -230,7 +249,9 @@ notify_telegram:
   tags: [ docker ]
   needs:
     - job: cleanup_old_minio
+      artifacts: true
     - job: build
+      artifacts: true
   before_script:
     - set -e
     - pip install requests minio pytz
