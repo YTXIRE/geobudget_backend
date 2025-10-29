@@ -52,7 +52,9 @@ versioning:
 tagging:
   stage: tagging
   tags: [ docker ]
-  needs: [ versioning ]
+  needs:
+    - job: versioning
+      artifacts: true
   script:
     - sh tagging.sh
   rules:
