@@ -31,7 +31,7 @@ versioning:
   image: python:3.12
   tags: [ docker ]
   variables:
-    PIPELINE_START_SEC: "$CI_PIPELINE_CREATED_AT"
+    PIPELINE_START_TIME: "$CI_PIPELINE_CREATED_AT"
   before_script:
     - apt-get update && apt-get install -y tzdata jq
   script:
@@ -59,6 +59,7 @@ tagging:
   image: python:3.12
   script:
     - set -e
+    - ls -l version.env
     - bash tagging.sh
   rules:
     - if: $CI_COMMIT_BRANCH
@@ -109,7 +110,6 @@ docker_build_push:
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-  privileged: true
   script:
     - set -e
     - echo "===== 🐳 START DOCKER BUILD ====="
@@ -134,7 +134,6 @@ deploy:
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-  privileged: true
   script:
     - set -e
     - echo "===== 🚀 START DEPLOY ====="
