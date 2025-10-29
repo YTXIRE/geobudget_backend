@@ -22,7 +22,7 @@ git tag -fa "v$VERSION" -m "Release $VERSION ($BUILD_DATE)"
 # -------------------------
 # Пушим тег на GitLab с перезаписью
 # -------------------------
-git remote set-url origin "http://root:glpat-IIgoeOxBmpkDPvjCJBWtHW86MQp1OjEH.01.0w0tszlsk@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+git remote set-url origin "http://root:glpat-4H6aDbEC6F1zzrLgVyaU2m86MQp1OjEH.01.0w0qyzbw6@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
 git push origin "v$VERSION" --force
 
 echo "✅ Тег v$VERSION создан/перезаписан и отправлен"
