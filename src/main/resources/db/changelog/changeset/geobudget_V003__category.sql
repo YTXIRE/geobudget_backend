@@ -1,7 +1,9 @@
 CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
-    description TEXT
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE okveds (
@@ -11,18 +13,18 @@ CREATE TABLE okveds (
     category_id INT NOT NULL REFERENCES categories(id)
 );
 
-INSERT INTO categories (name, description) VALUES
-('Продукты', 'Магазины продуктов питания'),
-('Строительные материалы', 'Магазины строительных материалов'),
-('Электроника и бытовая техника', 'Магазины электроники и бытовой техники'),
-('Аптеки и медицинские товары', 'Аптеки и магазины медицинских товаров'),
-('Рестораны и кафе', 'Рестораны, кафе, бары'),
-('Финансовые услуги', 'Банки, страховые компании, финансовые услуги'),
-('Одежда и обувь', 'Магазины одежды и обуви'),
-('Спортивные товары', 'Магазины спортивных товаров'),
-('Красота и здоровье', 'Салоны красоты, косметика и парфюмерия'),
-('Автомобили и мотоциклы', 'Магазины автомобилей и мотоциклов'),
-('Прочие товары и услуги', 'Прочие магазины и услуги');
+INSERT INTO categories (name, description, created_at, updated_at) VALUES
+('Продукты', 'Магазины продуктов питания', CURRENT_TIMESTAMP, null),
+('Строительные материалы', 'Магазины строительных материалов', CURRENT_TIMESTAMP, null),
+('Электроника и бытовая техника', 'Магазины электроники и бытовой техники', CURRENT_TIMESTAMP, null),
+('Аптеки и медицинские товары', 'Аптеки и магазины медицинских товаров', CURRENT_TIMESTAMP, null),
+('Рестораны и кафе', 'Рестораны, кафе, бары', CURRENT_TIMESTAMP, null),
+('Финансовые услуги', 'Банки, страховые компании, финансовые услуги', CURRENT_TIMESTAMP, null),
+('Одежда и обувь', 'Магазины одежды и обуви', CURRENT_TIMESTAMP, null),
+('Спортивные товары', 'Магазины спортивных товаров', CURRENT_TIMESTAMP, null),
+('Красота и здоровье', 'Салоны красоты, косметика и парфюмерия', CURRENT_TIMESTAMP, null),
+('Автомобили и мотоциклы', 'Магазины автомобилей и мотоциклов', CURRENT_TIMESTAMP, null),
+('Прочие товары и услуги', 'Прочие магазины и услуги', CURRENT_TIMESTAMP, null);
 
 INSERT INTO okveds (code, name, category_id) VALUES
 ('47.11', 'Супермаркеты', (SELECT id FROM categories WHERE name='Продукты')),

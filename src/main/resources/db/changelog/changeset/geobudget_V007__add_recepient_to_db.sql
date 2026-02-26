@@ -7,7 +7,7 @@ CREATE TABLE receipt (
     inn VARCHAR(12),
     shop_address VARCHAR(255),
     timestamp BIGINT,
-    category_id INT REFERENCES category(id)
+    category_id INT REFERENCES categories(id)
 );
 
 CREATE TABLE receipt_item (

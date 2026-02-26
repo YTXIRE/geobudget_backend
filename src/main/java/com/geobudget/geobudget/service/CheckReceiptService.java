@@ -138,11 +138,11 @@ public class CheckReceiptService {
 
         // Категория
         Category category = categoryRepository.findById(dto.getCategory().getId())
-                .orElseGet(() -> categoryRepository.save(new Category(
-                        dto.getCategory().getId(),
-                        dto.getCategory().getName(),
-                        dto.getCategory().getDescription()
-                )));
+                .orElseGet(() -> categoryRepository.save(Category.builder()
+                        .name(dto.getCategory().getName())
+                        .description(dto.getCategory().getDescription())
+                        .build()
+                ));
         receipt.setCategory(category);
 
         log.info("Category: {}", category);

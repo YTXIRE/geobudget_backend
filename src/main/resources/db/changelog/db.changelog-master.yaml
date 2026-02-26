@@ -11,3 +11,17 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V005__confirmation_tokens.sql
   - include:
       file: db/changelog/changeset/geobudget_V006__password_reset_tokens.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V007__add_recepient_to_db.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V008__add_category_icon.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V009__add_category_icons.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V010__add_category_color.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V011__colors_tables.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V012__icons_tables.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V013__add_foreign_keys_to_categories.sql

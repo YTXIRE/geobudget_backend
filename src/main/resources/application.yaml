@@ -4,8 +4,8 @@ server:
 spring:
   application:
     name: geobudget
-    url: https://backend.xire.ru
-#    url: http:/localhost:8180
+#    url: https://backend.xire.ru
+    url: http://localhost:8180
 
   datasource:
     url: jdbc:postgresql://localhost:5432/geobudget
@@ -78,5 +78,10 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+
+management:
+  health:
+    mail:
+      enabled: false
 
 
