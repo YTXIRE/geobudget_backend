@@ -1,0 +1,87 @@
+server:
+  port: 8180
+
+spring:
+  application:
+    name: geobudget
+#    url: https://backend.xire.ru
+    url: http://localhost:8180
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/geobudget
+    username: geouser
+    password: geopass
+    driver-class-name: org.postgresql.Driver
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: geobudgetapp@gmail.com
+    password: iqnisdfesqltbvpc
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  jackson:
+    serialization:
+      indent-output: true
+
+  mvc:
+    pathmatch:
+      matching-strategy: ANT_PATH_MATCHER
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# CORS ??? ?????????????? ? Vue ?? 5173 (Vite)
+cors:
+  allowed-origins: http://localhost:5173
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+# JWT ????????? (????????? ? ????????????)
+jwt:
+  secret: ${JWT_SECRET:1631290fa0ecab47fc5dd11482b1cfe874f6948ee3dba58d5a3eb0400290e5e3a895a59951aa4fd9149036af31720a2a126165d1d683e8936e8b4720b077f121}
+  expirationMs: 86400000 # 1 ???? ? ?????????????
+
+# External API keys and endpoints
+dadata:
+  apiKey: ${DADATA_API_KEY:dd3a6058a25d7a6477a9066446e186a3923a21bc}
+  secret: ${DADATA_X_SECRET:1184e7c2d6ba1aa9a06adadcf815a36d182c9b1a}
+  suggestUrl: https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party
+  cleanUrl: https://cleaner.dadata.ru/api/v1/clean/address
+
+receipts:
+  retry:
+    delay: 1000
+    attempts: 3
+  proverkacheka:
+    apiKey: ${PROVERKACHECKA_API_KEY:34309.yzpbf7SS9gtRQh5cK}
+
+# Swagger UI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  health:
+    mail:
+      enabled: false
+
+

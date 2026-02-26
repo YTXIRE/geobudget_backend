@@ -1,0 +1,85 @@
+{
+  "groups": [
+    {
+      "name": "category",
+      "type": "com.geobudget.geobudget.config.CategoryProperties",
+      "sourceType": "com.geobudget.geobudget.config.CategoryProperties"
+    },
+    {
+      "name": "dadata",
+      "type": "com.geobudget.geobudget.config.DadataProperties",
+      "sourceType": "com.geobudget.geobudget.config.DadataProperties"
+    },
+    {
+      "name": "jwt",
+      "type": "com.geobudget.geobudget.config.JwtProperties",
+      "sourceType": "com.geobudget.geobudget.config.JwtProperties"
+    },
+    {
+      "name": "receipts.proverkacheka",
+      "type": "com.geobudget.geobudget.config.ReceiptsProperties",
+      "sourceType": "com.geobudget.geobudget.config.ReceiptsProperties"
+    },
+    {
+      "name": "receipts.retry",
+      "type": "com.geobudget.geobudget.config.ReceiptsRetryProperties",
+      "sourceType": "com.geobudget.geobudget.config.ReceiptsRetryProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "category.fallback-id",
+      "type": "java.lang.Integer",
+      "sourceType": "com.geobudget.geobudget.config.CategoryProperties"
+    },
+    {
+      "name": "dadata.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.geobudget.geobudget.config.DadataProperties"
+    },
+    {
+      "name": "dadata.clean-url",
+      "type": "java.lang.String",
+      "sourceType": "com.geobudget.geobudget.config.DadataProperties"
+    },
+    {
+      "name": "dadata.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.geobudget.geobudget.config.DadataProperties"
+    },
+    {
+      "name": "dadata.suggest-url",
+      "type": "java.lang.String",
+      "sourceType": "com.geobudget.geobudget.config.DadataProperties"
+    },
+    {
+      "name": "jwt.expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.geobudget.geobudget.config.JwtProperties"
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.geobudget.geobudget.config.JwtProperties"
+    },
+    {
+      "name": "receipts.proverkacheka.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.geobudget.geobudget.config.ReceiptsProperties"
+    },
+    {
+      "name": "receipts.retry.attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.geobudget.geobudget.config.ReceiptsRetryProperties"
+    },
+    {
+      "name": "receipts.retry.delay",
+      "type": "java.lang.Integer",
+      "sourceType": "com.geobudget.geobudget.config.ReceiptsRetryProperties"
+    }
+  ],
+  "hints": [],
+  "ignored": {
+    "properties": []
+  }
+}

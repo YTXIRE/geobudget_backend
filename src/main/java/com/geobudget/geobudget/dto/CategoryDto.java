@@ -20,6 +20,7 @@ public class CategoryDto {
     private ColorDto color;
     private Boolean isFavorite;
     private String group;
+    private String type;
     private Integer transactionCount;
     private BigDecimal totalSum;
     private LocalDateTime createdAt;

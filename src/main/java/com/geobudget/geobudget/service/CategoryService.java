@@ -70,6 +70,7 @@ public class CategoryService {
                             .color(category.getColor() != null ? mapToColorDto(category.getColor()) : null)
                             .isFavorite(category.getIsFavorite())
                             .group(category.getGroupName())
+                            .type(category.getType())
                             .transactionCount(transactionCount)
                             .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                             .createdAt(category.getCreatedAt())
@@ -93,6 +94,7 @@ public class CategoryService {
                 .icon(icon)
                 .color(color)
                 .groupName(dto.getGroup())
+                .type("user")
                 .build();
         return getCategoryDto(category);
     }
@@ -117,6 +119,11 @@ public class CategoryService {
     }
 
     public void deleteCategory(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+        if ("system".equals(category.getType())) {
+            throw new RuntimeException("Cannot delete system category");
+        }
         categoryRepository.deleteById(id);
     }
 
@@ -140,6 +147,7 @@ public class CategoryService {
                 .color(category.getColor() != null ? mapToColorDto(category.getColor()) : null)
                 .isFavorite(category.getIsFavorite())
                 .group(category.getGroupName())
+                .type(category.getType())
                 .transactionCount(transactionCount)
                 .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                 .createdAt(category.getCreatedAt())

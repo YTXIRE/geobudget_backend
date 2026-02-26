@@ -50,6 +50,9 @@ public class Category {
     @Column(name = "group_name")
     private String groupName;
 
+    @Column(name = "type")
+    private String type;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
