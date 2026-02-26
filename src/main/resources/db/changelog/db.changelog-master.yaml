@@ -25,3 +25,9 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V012__icons_tables.sql
   - include:
       file: db/changelog/changeset/geobudget_V013__add_foreign_keys_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V014__add_is_favorite_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V015__add_group_name_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V016__populate_category_groups.sql
