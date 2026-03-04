@@ -10,6 +10,10 @@ import java.util.Collection;
 import java.util.stream.Stream;
 
 public record CustomUserDetails(User user) implements UserDetails {
+    public Long getUserId() {
+        return user.getId();
+    }
+    
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Stream.of(Role.values())

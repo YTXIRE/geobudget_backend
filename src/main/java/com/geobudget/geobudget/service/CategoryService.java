@@ -57,8 +57,15 @@ public class CategoryService {
         return categoryDto;
     }
 
-    public List<CategoryDto> getAllCategories() {
-        return categoryRepository.findAllWithIconAndColor().stream()
+    public List<CategoryDto> getCategoriesForUser(Long userId) {
+        List<Category> systemCategories = categoryRepository.findAllSystemCategories();
+        List<Category> userCategories = categoryRepository.findUserCategoriesByUserId(userId);
+        
+        List<Category> allCategories = new java.util.ArrayList<>();
+        allCategories.addAll(systemCategories);
+        allCategories.addAll(userCategories);
+        
+        return allCategories.stream()
                 .map(category -> {
                     Integer transactionCount = receiptRepository.countByCategoryId(category.getId());
                     Double totalSum = receiptRepository.sumTotalSumByCategoryId(category.getId());
@@ -71,6 +78,7 @@ public class CategoryService {
                             .isFavorite(category.getIsFavorite())
                             .group(category.getGroupName())
                             .type(category.getType())
+                            .userId(category.getUserId())
                             .transactionCount(transactionCount)
                             .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                             .createdAt(category.getCreatedAt())
@@ -80,7 +88,7 @@ public class CategoryService {
                 .toList();
     }
 
-    public CategoryDto createCategory(CategoryDto dto) {
+    public CategoryDto createCategory(CategoryDto dto, Long userId) {
         Icon icon = dto.getIcon() != null && dto.getIcon().getId() != null
                 ? iconRepository.findById(dto.getIcon().getId()).orElse(null) 
                 : iconRepository.findById(1L).orElse(null);
@@ -95,13 +103,19 @@ public class CategoryService {
                 .color(color)
                 .groupName(dto.getGroup())
                 .type("user")
+                .userId(userId)
                 .build();
         return getCategoryDto(category);
     }
 
-    public CategoryDto updateCategory(Long id, CategoryDto dto) {
-        Category category = categoryRepository.findById(id)
+    public CategoryDto updateCategory(Long id, CategoryDto dto, Long userId) {
+        Category category = categoryRepository.findByIdWithIconAndColor(id)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
+        
+        if (!"system".equals(category.getType()) && !userId.equals(category.getUserId())) {
+            throw new RuntimeException("You can only edit your own categories");
+        }
+        
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
         category.setGroupName(dto.getGroup());
@@ -118,18 +132,26 @@ public class CategoryService {
         return getCategoryDto(category);
     }
 
-    public void deleteCategory(Long id) {
+    public void deleteCategory(Long id, Long userId) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
         if ("system".equals(category.getType())) {
             throw new RuntimeException("Cannot delete system category");
         }
+        if (!userId.equals(category.getUserId())) {
+            throw new RuntimeException("You can only delete your own categories");
+        }
         categoryRepository.deleteById(id);
     }
 
-    public CategoryDto toggleFavorite(Long id) {
-        Category category = categoryRepository.findById(id)
+    public CategoryDto toggleFavorite(Long id, Long userId) {
+        Category category = categoryRepository.findByIdWithIconAndColor(id)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
+        
+        if (!"system".equals(category.getType()) && !userId.equals(category.getUserId())) {
+            throw new RuntimeException("You can only toggle favorite on your own categories");
+        }
+        
         boolean currentValue = category.getIsFavorite() != null && category.getIsFavorite();
         category.setIsFavorite(!currentValue);
         return getCategoryDto(category);
@@ -148,6 +170,7 @@ public class CategoryService {
                 .isFavorite(category.getIsFavorite())
                 .group(category.getGroupName())
                 .type(category.getType())
+                .userId(category.getUserId())
                 .transactionCount(transactionCount)
                 .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                 .createdAt(category.getCreatedAt())

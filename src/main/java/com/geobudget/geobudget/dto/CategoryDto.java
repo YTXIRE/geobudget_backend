@@ -21,6 +21,7 @@ public class CategoryDto {
     private Boolean isFavorite;
     private String group;
     private String type;
+    private Long userId;
     private Integer transactionCount;
     private BigDecimal totalSum;
     private LocalDateTime createdAt;

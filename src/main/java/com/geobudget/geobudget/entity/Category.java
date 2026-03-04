@@ -53,6 +53,9 @@ public class Category {
     @Column(name = "type")
     private String type;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

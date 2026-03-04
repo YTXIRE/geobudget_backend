@@ -2,6 +2,7 @@ package com.geobudget.geobudget.controller;
 
 import com.geobudget.geobudget.docs.companyInfo.GetCompanyByInnDoc;
 import com.geobudget.geobudget.dto.CategoryDto;
+import com.geobudget.geobudget.security.CustomUserDetails;
 import com.geobudget.geobudget.service.CategoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,24 +38,24 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDto>> getCategories() {
-        return ResponseEntity.ok(categoryService.getAllCategories());
+    public ResponseEntity<List<CategoryDto>> getCategories(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(categoryService.getCategoriesForUser(userDetails.getUserId()));
     }
 
     @PostMapping("/categories")
-    public ResponseEntity<CategoryDto> createCategory(@Valid @RequestBody CategoryDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createCategory(dto));
+    public ResponseEntity<CategoryDto> createCategory(@Valid @RequestBody CategoryDto dto, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createCategory(dto, userDetails.getUserId()));
     }
 
     @PutMapping("/categories/{id}")
-    public ResponseEntity<CategoryDto> updateCategory(@PathVariable Long id, @Valid @RequestBody CategoryDto dto) {
+    public ResponseEntity<CategoryDto> updateCategory(@PathVariable Long id, @Valid @RequestBody CategoryDto dto, @AuthenticationPrincipal CustomUserDetails userDetails) {
         log.info("DTO: {}", dto);
-        return ResponseEntity.ok(categoryService.updateCategory(id, dto));
+        return ResponseEntity.ok(categoryService.updateCategory(id, dto, userDetails.getUserId()));
     }
 
     @DeleteMapping("/categories/{id}")
-    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
-        categoryService.deleteCategory(id);
+    public ResponseEntity<Void> deleteCategory(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        categoryService.deleteCategory(id, userDetails.getUserId());
         return ResponseEntity.noContent().build();
     }
 
@@ -67,7 +69,7 @@ public class CategoryController {
     }
 
     @PostMapping("/categories/{id}/favorite")
-    public ResponseEntity<CategoryDto> toggleFavorite(@PathVariable Long id) {
-        return ResponseEntity.ok(categoryService.toggleFavorite(id));
+    public ResponseEntity<CategoryDto> toggleFavorite(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(categoryService.toggleFavorite(id, userDetails.getUserId()));
     }
 }
