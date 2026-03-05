@@ -56,6 +56,9 @@ public class Category {
     @Column(name = "user_id")
     private Long userId;
 
+    @Column(name = "parent_id")
+    private Long parentId;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

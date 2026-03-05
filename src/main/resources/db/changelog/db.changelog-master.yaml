@@ -35,3 +35,5 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V017__add_type_to_categories.sql
   - include:
       file: db/changelog/changeset/geobudget_V018__add_user_id_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V019__add_parent_id_to_categories.sql

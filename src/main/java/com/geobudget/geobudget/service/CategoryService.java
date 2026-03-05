@@ -79,6 +79,7 @@ public class CategoryService {
                             .group(category.getGroupName())
                             .type(category.getType())
                             .userId(category.getUserId())
+                            .parentId(category.getParentId())
                             .transactionCount(transactionCount)
                             .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                             .createdAt(category.getCreatedAt())
@@ -89,6 +90,14 @@ public class CategoryService {
     }
 
     public CategoryDto createCategory(CategoryDto dto, Long userId) {
+        if (dto.getParentId() != null) {
+            Category parent = categoryRepository.findById(dto.getParentId())
+                    .orElseThrow(() -> new RuntimeException("Parent category not found"));
+            if (parent.getParentId() != null) {
+                throw new RuntimeException("Cannot create subcategory: maximum nesting depth is 2 levels");
+            }
+        }
+        
         Icon icon = dto.getIcon() != null && dto.getIcon().getId() != null
                 ? iconRepository.findById(dto.getIcon().getId()).orElse(null) 
                 : iconRepository.findById(1L).orElse(null);
@@ -96,14 +105,19 @@ public class CategoryService {
                 ? colorRepository.findById(dto.getColor().getId()).orElse(null) 
                 : colorRepository.findById(1L).orElse(null);
         
+        Category parentCategory = dto.getParentId() != null 
+                ? categoryRepository.findById(dto.getParentId()).orElse(null) 
+                : null;
+        
         Category category = Category.builder()
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .icon(icon)
                 .color(color)
-                .groupName(dto.getGroup())
+                .groupName(dto.getGroup() != null ? dto.getGroup() : (parentCategory != null ? parentCategory.getGroupName() : null))
                 .type("user")
                 .userId(userId)
+                .parentId(dto.getParentId())
                 .build();
         return getCategoryDto(category);
     }
@@ -116,9 +130,20 @@ public class CategoryService {
             throw new RuntimeException("You can only edit your own categories");
         }
         
+        if (dto.getParentId() != null && !dto.getParentId().equals(category.getId())) {
+            Category parent = categoryRepository.findById(dto.getParentId())
+                    .orElseThrow(() -> new RuntimeException("Parent category not found"));
+            if (parent.getParentId() != null) {
+                throw new RuntimeException("Maximum nesting depth is 2 levels");
+            }
+            category.setGroupName(dto.getGroup() != null ? dto.getGroup() : parent.getGroupName());
+        } else if (dto.getParentId() == null) {
+            category.setGroupName(dto.getGroup() != null ? dto.getGroup() : category.getGroupName());
+        }
+        
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
-        category.setGroupName(dto.getGroup());
+        category.setParentId(dto.getParentId());
         if (dto.getIcon() != null && dto.getIcon().getId() != null) {
             category.setIcon(iconRepository.findById(dto.getIcon().getId()).orElse(null));
         } else {
@@ -141,6 +166,13 @@ public class CategoryService {
         if (!userId.equals(category.getUserId())) {
             throw new RuntimeException("You can only delete your own categories");
         }
+        
+        List<Category> subcategories = categoryRepository.findByParentId(id);
+        for (Category subcategory : subcategories) {
+            subcategory.setParentId(null);
+            categoryRepository.save(subcategory);
+        }
+        
         categoryRepository.deleteById(id);
     }
 
@@ -171,6 +203,7 @@ public class CategoryService {
                 .group(category.getGroupName())
                 .type(category.getType())
                 .userId(category.getUserId())
+                .parentId(category.getParentId())
                 .transactionCount(transactionCount)
                 .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                 .createdAt(category.getCreatedAt())

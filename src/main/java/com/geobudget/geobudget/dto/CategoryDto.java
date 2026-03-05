@@ -22,6 +22,7 @@ public class CategoryDto {
     private String group;
     private String type;
     private Long userId;
+    private Long parentId;
     private Integer transactionCount;
     private BigDecimal totalSum;
     private LocalDateTime createdAt;
