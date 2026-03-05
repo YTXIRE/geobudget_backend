@@ -141,6 +141,8 @@ public class CheckReceiptService {
                 .orElseGet(() -> categoryRepository.save(Category.builder()
                         .name(dto.getCategory().getName())
                         .description(dto.getCategory().getDescription())
+                        .type("system")
+                        .transactionType("expense")
                         .build()
                 ));
         receipt.setCategory(category);

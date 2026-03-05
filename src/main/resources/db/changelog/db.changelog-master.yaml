@@ -45,3 +45,13 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V022__add_indexes.sql
   - include:
       file: db/changelog/changeset/geobudget_V023__add_missing_system_groups.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V024__create_transactions_table.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V025__add_transaction_type_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V026__sync_transactions_with_category_type.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V027__set_income_categories_group_and_icons.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V028__set_income_categories_colors.sql

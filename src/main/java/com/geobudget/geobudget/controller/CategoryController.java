@@ -30,7 +30,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1")
+@RequestMapping({"/api", "/api/v1"})
 @Tag(name = "Category", description = "Работа с категориями")
 @Validated
 @PreAuthorize("hasRole('USER')")
@@ -38,8 +38,20 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDto>> getCategories(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(categoryService.getCategoriesForUser(userDetails.getUserId()));
+    public ResponseEntity<List<CategoryDto>> getCategories(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String transactionType,
+            @RequestParam(defaultValue = "false") boolean includeArchived
+    ) {
+        return ResponseEntity.ok(categoryService.getCategoriesForUser(userDetails.getUserId(), transactionType, includeArchived));
+    }
+
+    @GetMapping("/categories/{id}")
+    public ResponseEntity<CategoryDto> getCategoryById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(categoryService.getCategoryById(id, userDetails.getUserId()));
     }
 
     @PostMapping("/categories")

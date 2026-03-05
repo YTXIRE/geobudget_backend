@@ -87,10 +87,11 @@ public class JwtFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
         response.setStatus(status);
         response.setContentType("application/json");
-        response.getWriter().write(mapper.writeValueAsString(new ErrorResponse(
-                "JWT токен не прошёл проверку",
-                message
-        )));
+        response.getWriter().write(mapper.writeValueAsString(ErrorResponse.builder()
+                .statusCode(status)
+                .message("JWT token validation failed")
+                .details(List.of(message))
+                .build()));
         response.getWriter().flush();
     }
 

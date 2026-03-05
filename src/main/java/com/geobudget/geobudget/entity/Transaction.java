@@ -17,6 +17,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -24,50 +25,41 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "categories")
+@Table(name = "transactions")
 @EntityListeners(AuditingEntityListener.class)
-public class Category {
+public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String name;
-
-    private String description;
-
-    @ManyToOne
-    @JoinColumn(name = "icon_id")
-    private Icon icon;
-
-    @ManyToOne
-    @JoinColumn(name = "color_id")
-    private Color color;
-
-    @Column(name = "is_favorite")
-    private Boolean isFavorite;
-
-    @Column(name = "is_archived")
-    private Boolean isArchived;
-
-    @ManyToOne
-    @JoinColumn(name = "group_id")
-    private Group group;
-
-    @Column(name = "type")
-    private String type;
-
-    @Column(name = "transaction_type", nullable = false)
-    private String transactionType;
-
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name = "type", nullable = false)
+    private String type;
+
+    @Column(name = "amount", nullable = false, precision = 14, scale = 2)
+    private BigDecimal amount;
+
+    @ManyToOne
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @Column(name = "description", length = 255)
+    private String description;
+
+    @Column(name = "occurred_at", nullable = false)
+    private LocalDateTime occurredAt;
+
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Builder.Default
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
 }

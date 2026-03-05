@@ -16,6 +16,7 @@ import com.geobudget.geobudget.repository.ColorRepository;
 import com.geobudget.geobudget.repository.IconRepository;
 import com.geobudget.geobudget.repository.OkvedRepository;
 import com.geobudget.geobudget.repository.ReceiptRepository;
+import jakarta.persistence.EntityNotFoundException;
 import com.geobudget.geobudget.validator.InnValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,53 +49,47 @@ public class CategoryService {
             String foundedOkved = foundedOkvedSuggestions.getFirst().getData().getOkved();
 
             categoryDto = okvedRepository.findByCode(foundedOkved)
-                    .map(okved -> CategoryDto.builder().id(okved.getCategory().getId()).name(okved.getCategory().getName()).description(okved.getCategory().getDescription()).build())
+                    .map(okved -> CategoryDto.builder()
+                            .id(okved.getCategory().getId())
+                            .name(okved.getCategory().getName())
+                            .description(okved.getCategory().getDescription())
+                            .transactionType(okved.getCategory().getTransactionType())
+                            .build())
                     .orElse(null);
         }
 
         if (categoryDto == null) {
             Category categoryEntity = categoryRepository.findById(categoryProperties.getFallbackId().longValue())
                     .orElseThrow(() -> new RuntimeException("Category not found"));
-            categoryDto = CategoryDto.builder().id(categoryEntity.getId()).name(categoryEntity.getName()).description(categoryEntity.getDescription()).build();
+            categoryDto = CategoryDto.builder()
+                    .id(categoryEntity.getId())
+                    .name(categoryEntity.getName())
+                    .description(categoryEntity.getDescription())
+                    .transactionType(categoryEntity.getTransactionType())
+                    .build();
         }
 
         return categoryDto;
     }
 
-    public List<CategoryDto> getCategoriesForUser(Long userId) {
-        List<Category> systemCategories = categoryRepository.findAllSystemCategories();
-        List<Category> userCategories = categoryRepository.findUserCategoriesByUserId(userId);
-        
-        List<Category> allCategories = new java.util.ArrayList<>();
-        allCategories.addAll(systemCategories);
-        allCategories.addAll(userCategories);
-        
-        return allCategories.stream()
-                .map(category -> {
-                    Integer transactionCount = receiptRepository.countByCategoryId(category.getId());
-                    Double totalSum = receiptRepository.sumTotalSumByCategoryId(category.getId());
-                    return CategoryDto.builder()
-                            .id(category.getId())
-                            .name(category.getName())
-                            .description(category.getDescription())
-                            .icon(category.getIcon() != null ? mapToIconDto(category.getIcon()) : null)
-                            .color(category.getColor() != null ? mapToColorDto(category.getColor()) : null)
-                            .isFavorite(category.getIsFavorite())
-                            .isArchived(category.getIsArchived())
-                            .groupId(category.getGroup() != null ? category.getGroup().getId() : null)
-                            .group(category.getGroup() != null ? mapToGroupDto(category.getGroup()) : null)
-                            .type(category.getType())
-                            .userId(category.getUserId())
-                            .transactionCount(transactionCount)
-                            .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
-                            .createdAt(category.getCreatedAt())
-                            .updatedAt(category.getUpdatedAt())
-                            .build();
-                })
+    public List<CategoryDto> getCategoriesForUser(Long userId, String transactionType, boolean includeArchived) {
+        validateTransactionType(transactionType);
+
+        return categoryRepository.findCategoriesForUser(userId, transactionType, includeArchived)
+                .stream()
+                .map(this::mapCategory)
                 .toList();
     }
 
+    public CategoryDto getCategoryById(Long id, Long userId) {
+        Category category = categoryRepository.findAccessibleById(id, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+        return mapCategory(category);
+    }
+
     public CategoryDto createCategory(CategoryDto dto, Long userId) {
+        validateTransactionType(dto.getTransactionType());
+
         Icon icon = dto.getIcon() != null && dto.getIcon().getId() != null
                 ? iconRepository.findById(dto.getIcon().getId()).orElse(null) 
                 : iconRepository.findById(1L).orElse(null);
@@ -116,17 +111,24 @@ public class CategoryService {
                 .color(color)
                 .group(group)
                 .type("user")
+                .transactionType(dto.getTransactionType())
                 .userId(userId)
                 .build();
         return getCategoryDto(category);
     }
 
     public CategoryDto updateCategory(Long id, CategoryDto dto, Long userId) {
+        validateTransactionType(dto.getTransactionType());
+
         Category category = categoryRepository.findByIdWithIconAndColor(id)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
         
         if (!"system".equals(category.getType()) && !userId.equals(category.getUserId())) {
             throw new RuntimeException("You can only edit your own categories");
+        }
+
+        if ("system".equals(category.getType()) && !category.getTransactionType().equals(dto.getTransactionType())) {
+            throw new IllegalArgumentException("Cannot change transactionType for system category");
         }
         
         Long groupId = resolveGroupId(dto);
@@ -139,6 +141,7 @@ public class CategoryService {
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
         category.setGroup(group);
+        category.setTransactionType(dto.getTransactionType());
         if (dto.getIcon() != null && dto.getIcon().getId() != null) {
             category.setIcon(iconRepository.findById(dto.getIcon().getId()).orElse(null));
         } else {
@@ -179,6 +182,10 @@ public class CategoryService {
 
     private CategoryDto getCategoryDto(Category category) {
         category = categoryRepository.save(category);
+        return mapCategory(category);
+    }
+
+    private CategoryDto mapCategory(Category category) {
         Integer transactionCount = receiptRepository.countByCategoryId(category.getId());
         Double totalSum = receiptRepository.sumTotalSumByCategoryId(category.getId());
         return CategoryDto.builder()
@@ -192,12 +199,23 @@ public class CategoryService {
                 .groupId(category.getGroup() != null ? category.getGroup().getId() : null)
                 .group(category.getGroup() != null ? mapToGroupDto(category.getGroup()) : null)
                 .type(category.getType())
+                .transactionType(category.getTransactionType())
                 .userId(category.getUserId())
                 .transactionCount(transactionCount)
                 .totalSum(BigDecimal.valueOf(totalSum != null ? totalSum : 0.0))
                 .createdAt(category.getCreatedAt())
                 .updatedAt(category.getUpdatedAt())
                 .build();
+    }
+
+    private void validateTransactionType(String transactionType) {
+        if (transactionType == null) {
+            return;
+        }
+
+        if (!"income".equals(transactionType) && !"expense".equals(transactionType)) {
+            throw new IllegalArgumentException("transactionType must be income or expense");
+        }
     }
 
     private IconDto mapToIconDto(Icon icon) {

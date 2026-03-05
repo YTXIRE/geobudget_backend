@@ -1,17 +1,18 @@
 package com.geobudget.geobudget.exception.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.Map;
+import java.util.List;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ErrorResponse {
+    private int statusCode;
     private String message;
-    private String details;
-    private Map<String, String> errorsList;
-
-    public ErrorResponse(String message, String details) {
-        this.message = message;
-        this.details = details;
-    }
+    private List<String> details;
 }

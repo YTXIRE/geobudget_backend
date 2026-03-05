@@ -3,172 +3,95 @@ package com.geobudget.geobudget.exception;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.geobudget.geobudget.exception.dto.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        log.error("Validation error occured: {}", ex.getMessage(), ex);
-        Map<String, String> errors = new HashMap<>();
+        List<String> details = ex.getBindingResult()
+                .getAllErrors()
+                .stream()
+                .map(error -> {
+                    if (error instanceof FieldError fieldError) {
+                        return fieldError.getField() + " " + fieldError.getDefaultMessage();
+                    }
+                    return error.getDefaultMessage();
+                })
+                .toList();
 
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-
-        ErrorResponse response = new ErrorResponse("Ошибка валидации", "Проверьте введенные данные");
-        response.setErrorsList(errors);
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return build(HttpStatus.BAD_REQUEST, "Validation failed", details);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException ex) {
-        log.error("Constraint violation error occured: {}", ex.getMessage(), ex);
-        Map<String, String> errors = new HashMap<>();
+        List<String> details = ex.getConstraintViolations()
+                .stream()
+                .map(violation -> violation.getPropertyPath() + " " + violation.getMessage())
+                .toList();
 
-        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
-            String fieldName = violation.getPropertyPath().toString();
-            String errorMessage = violation.getMessage();
-            errors.put(fieldName, errorMessage);
-        }
-
-        ErrorResponse response = new ErrorResponse("Validation error", "Check input data");
-        response.setErrorsList(errors);
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return build(HttpStatus.BAD_REQUEST, "Validation failed", details);
     }
 
-    @ExceptionHandler(DataValidationException.class)
-    public ResponseEntity<ErrorResponse> handleDataValidationException(DataValidationException ex) {
-        log.error("Data validation exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                new ErrorResponse(ex.getMessage(), "Data validation error, check input data"));
+    @ExceptionHandler({IllegalArgumentException.class, DataValidationException.class, HttpMessageNotReadableException.class, MismatchedInputException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex) {
+        return build(HttpStatus.BAD_REQUEST, "Validation failed", List.of(ex.getMessage()));
     }
 
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleEntityNotFoundException(EntityNotFoundException ex) {
-        log.error("Entity not found exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                new ErrorResponse(ex.getMessage(), "Entity not found, check id"));
+    @ExceptionHandler({JwtAuthenticationException.class, AuthenticationException.class})
+    public ResponseEntity<ErrorResponse> handleUnauthorized(Exception ex) {
+        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", List.of(ex.getMessage()));
     }
 
-    @ExceptionHandler(EntityWasRemovedException.class)
-    public ResponseEntity<ErrorResponse> handleEntityWasRemovedException(EntityWasRemovedException ex) {
-        log.error("Entity was removed exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(ex.getMessage(), "Entity is no longer available"));
+    @ExceptionHandler({AccessDeniedException.class, UnauthorizedAccessException.class})
+    public ResponseEntity<ErrorResponse> handleForbidden(Exception ex) {
+        return build(HttpStatus.FORBIDDEN, "Access denied", List.of(ex.getMessage()));
     }
 
-    @ExceptionHandler(JsonProcessingException.class)
-    public ResponseEntity<ErrorResponse> handleJsonProcessingException(JsonProcessingException ex) {
-        log.error("Json processing exception: {}", ex.getMessage(), ex);
-        String errorMessage = extractMessage(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(errorMessage, "Json processing error"));
+    @ExceptionHandler({EntityNotFoundException.class, UserNotFoundException.class, CategoryNotFoundException.class, EntityWasRemovedException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(Exception ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), List.of(ex.getMessage()));
     }
 
-    @ExceptionHandler(NetworkException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public String handleNetworkException(NetworkException ex) {
-        log.error("Network error occurred: {}", ex.getMessage(), ex);
-
-        String fullMessage = ex.getMessage();
-        int lastBracketIndex = fullMessage.lastIndexOf("[");
-
-        if (lastBracketIndex != -1 && lastBracketIndex + 1 < fullMessage.length()) {
-            return fullMessage.substring(lastBracketIndex + 1, fullMessage.length() - 1);
-        }
-
-        return "Unknown error";
+    @ExceptionHandler({NotUniqueAlbumException.class, ReceiptExisting.class})
+    public ResponseEntity<ErrorResponse> handleConflict(Exception ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), List.of(ex.getMessage()));
     }
 
-    @ExceptionHandler(UserNotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public String handleUserNotFoundException(UserNotFoundException ex) {
-        log.error("User not found: {}", ex.getMessage(), ex);
-
-        String fullMessage = ex.getMessage();
-        int lastBracketIndex = fullMessage.lastIndexOf("[");
-
-        if (lastBracketIndex != -1 && lastBracketIndex + 1 < fullMessage.length()) {
-            return fullMessage.substring(lastBracketIndex + 1, fullMessage.length() - 1);
-        }
-
-        return "User not found";
+    @ExceptionHandler({JsonProcessingException.class, NetworkException.class})
+    public ResponseEntity<ErrorResponse> handleExternalErrors(Exception ex) {
+        return build(HttpStatus.BAD_GATEWAY, ex.getMessage(), List.of(ex.getMessage()));
     }
 
-    private String extractMessage(String fullMessage) {
-        int lastBracketIndex = fullMessage.lastIndexOf("[");
-        if (lastBracketIndex != -1 && lastBracketIndex + 1 < fullMessage.length()) {
-            return fullMessage.substring(lastBracketIndex + 1, fullMessage.length() - 1);
-        }
-        return "Unknown error";
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnhandled(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", List.of("Unexpected error"));
     }
 
-    @ExceptionHandler(NotUniqueAlbumException.class)
-    public ResponseEntity<String> handleNotUniqueAlbumException(NotUniqueAlbumException ex) {
-        log.error("NotUniqueAlbumException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
-    }
+    private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, List<String> details) {
+        List<String> normalizedDetails = details == null ? new ArrayList<>() : details;
+        ErrorResponse response = ErrorResponse.builder()
+                .statusCode(status.value())
+                .message(message)
+                .details(normalizedDetails)
+                .build();
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
-        log.error("IllegalArgumentException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                new ErrorResponse(ex.getMessage(), "Проверьте введенные данные"));
-    }
-
-    @ExceptionHandler(MismatchedInputException.class)
-    public ResponseEntity<ErrorResponse> handleMismatchedInputException(MismatchedInputException ex) {
-        log.error("MismatchedInputException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                new ErrorResponse("Пользователь не авторизован", "Для доступа к запрашиваемому ресурсу требуется аутентификация."));
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
-        log.error("HttpMessageNotReadableException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                new ErrorResponse("Ошибка запроса", "Проверьте введенные данные"));
-    }
-
-    @ExceptionHandler(CategoryNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCategoryNotFoundException(CategoryNotFoundException ex) {
-        log.error("CategoryNotFoundException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                new ErrorResponse("Не верная категория", "Категория не найдена. Проверьте введенные данные"));
-    }
-
-    @ExceptionHandler(JwtAuthenticationException.class)
-    public ResponseEntity<ErrorResponse> handleJwtAuthenticationException(JwtAuthenticationException ex) {
-        log.error("JwtAuthenticationException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                new ErrorResponse("Ошибка аутентификации", ex.getMessage()));
-    }
-
-    @ExceptionHandler(ReceiptExisting.class)
-    public ResponseEntity<ErrorResponse> handleJwtAuthenticationException(ReceiptExisting ex) {
-        log.error("JwtAuthenticationException access exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.OK).body(
-                new ErrorResponse("Такой чек уже добавлен", ex.getMessage()));
+        return ResponseEntity.status(status).body(response);
     }
 }
