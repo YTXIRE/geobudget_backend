@@ -2,13 +2,16 @@ package com.geobudget.geobudget.service;
 
 import com.geobudget.geobudget.config.CategoryProperties;
 import com.geobudget.geobudget.dto.CategoryDto;
+import com.geobudget.geobudget.dto.CategoryGroupDto;
 import com.geobudget.geobudget.dto.ColorDto;
 import com.geobudget.geobudget.dto.IconDto;
 import com.geobudget.geobudget.dto.companyInfo.Suggestion;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Color;
+import com.geobudget.geobudget.entity.Group;
 import com.geobudget.geobudget.entity.Icon;
 import com.geobudget.geobudget.repository.CategoryRepository;
+import com.geobudget.geobudget.repository.GroupRepository;
 import com.geobudget.geobudget.repository.ColorRepository;
 import com.geobudget.geobudget.repository.IconRepository;
 import com.geobudget.geobudget.repository.OkvedRepository;
@@ -32,6 +35,7 @@ public class CategoryService {
     private final InnValidator innValidator;
     private final IconRepository iconRepository;
     private final ColorRepository colorRepository;
+    private final GroupRepository groupRepository;
     private final ReceiptRepository receiptRepository;
 
     public CategoryDto getCategory(String inn) throws Exception {
@@ -76,7 +80,9 @@ public class CategoryService {
                             .icon(category.getIcon() != null ? mapToIconDto(category.getIcon()) : null)
                             .color(category.getColor() != null ? mapToColorDto(category.getColor()) : null)
                             .isFavorite(category.getIsFavorite())
-                            .group(category.getGroupName())
+                            .isArchived(category.getIsArchived())
+                            .groupId(category.getGroup() != null ? category.getGroup().getId() : null)
+                            .group(category.getGroup() != null ? mapToGroupDto(category.getGroup()) : null)
                             .type(category.getType())
                             .userId(category.getUserId())
                             .transactionCount(transactionCount)
@@ -96,12 +102,19 @@ public class CategoryService {
                 ? colorRepository.findById(dto.getColor().getId()).orElse(null) 
                 : colorRepository.findById(1L).orElse(null);
         
+        Long groupId = resolveGroupId(dto);
+        Group group = null;
+        if (groupId != null) {
+            group = groupRepository.findByIdAndUserIdIsNullOrUserId(groupId, userId)
+                    .orElseThrow(() -> new RuntimeException("Group not found"));
+        }
+        
         Category category = Category.builder()
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .icon(icon)
                 .color(color)
-                .groupName(dto.getGroup())
+                .group(group)
                 .type("user")
                 .userId(userId)
                 .build();
@@ -116,9 +129,16 @@ public class CategoryService {
             throw new RuntimeException("You can only edit your own categories");
         }
         
+        Long groupId = resolveGroupId(dto);
+        Group group = null;
+        if (groupId != null) {
+            group = groupRepository.findByIdAndUserIdIsNullOrUserId(groupId, userId)
+                    .orElseThrow(() -> new RuntimeException("Group not found"));
+        }
+        
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
-        category.setGroupName(dto.getGroup());
+        category.setGroup(group);
         if (dto.getIcon() != null && dto.getIcon().getId() != null) {
             category.setIcon(iconRepository.findById(dto.getIcon().getId()).orElse(null));
         } else {
@@ -168,7 +188,9 @@ public class CategoryService {
                 .icon(category.getIcon() != null ? mapToIconDto(category.getIcon()) : null)
                 .color(category.getColor() != null ? mapToColorDto(category.getColor()) : null)
                 .isFavorite(category.getIsFavorite())
-                .group(category.getGroupName())
+                .isArchived(category.getIsArchived())
+                .groupId(category.getGroup() != null ? category.getGroup().getId() : null)
+                .group(category.getGroup() != null ? mapToGroupDto(category.getGroup()) : null)
                 .type(category.getType())
                 .userId(category.getUserId())
                 .transactionCount(transactionCount)
@@ -193,5 +215,24 @@ public class CategoryService {
                 .hex(color.getHex())
                 .argb(color.getArgb())
                 .build();
+    }
+
+    private CategoryGroupDto mapToGroupDto(Group group) {
+        return CategoryGroupDto.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .build();
+    }
+
+    private Long resolveGroupId(CategoryDto dto) {
+        if (dto.getGroupId() != null) {
+            return dto.getGroupId();
+        }
+
+        if (dto.getGroup() != null) {
+            return dto.getGroup().getId();
+        }
+
+        return null;
     }
 }

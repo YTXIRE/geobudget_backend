@@ -47,8 +47,12 @@ public class Category {
     @Column(name = "is_favorite")
     private Boolean isFavorite;
 
-    @Column(name = "group_name")
-    private String groupName;
+    @Column(name = "is_archived")
+    private Boolean isArchived;
+
+    @ManyToOne
+    @JoinColumn(name = "group_id")
+    private Group group;
 
     @Column(name = "type")
     private String type;

@@ -5,27 +5,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CategoryDto {
+public class GroupDto {
     private Long id;
     private String name;
-    private String description;
-    private IconDto icon;
-    private ColorDto color;
-    private Boolean isFavorite;
-    private Boolean isArchived;
-    private Long groupId;
-    private CategoryGroupDto group;
-    private String type;
     private Long userId;
-    private Integer transactionCount;
-    private BigDecimal totalSum;
+    private Boolean isSystem;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

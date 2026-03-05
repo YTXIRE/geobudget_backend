@@ -1,5 +1,54 @@
 # backend
 
+## Запуск PostgreSQL в Docker (с `.env`)
+
+Проект ожидает PostgreSQL на `localhost:5432` и использует значения из `.env`:
+
+- `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/geobudget`
+- `SPRING_DATASOURCE_USERNAME=geouser`
+- `SPRING_DATASOURCE_PASSWORD=geopass`
+
+Поднять БД можно так:
+
+```bash
+docker volume create geobudget_pgdata
+
+docker run -d \
+  --name geobudget-postgres \
+  -e POSTGRES_DB=geobudget \
+  -e POSTGRES_USER=geouser \
+  -e POSTGRES_PASSWORD=geopass \
+  -p 5432:5432 \
+  -v geobudget_pgdata:/var/lib/postgresql/data \
+  postgres:16
+```
+
+Проверка статуса:
+
+```bash
+docker ps --filter "name=geobudget-postgres"
+docker logs geobudget-postgres
+```
+
+Остановка/удаление контейнера (данные сохранятся в volume):
+
+```bash
+docker stop geobudget-postgres
+docker rm geobudget-postgres
+```
+
+После запуска backend Liquibase автоматически создаст схему и заполнит стартовые данные.
+
+## Если падает отправка почты локально
+
+Если при регистрации возникает ошибка подключения к SMTP (`smtp.gmail.com:587`, `Connection refused`), отключите отправку писем для локальной разработки:
+
+```bash
+APP_MAIL_ENABLED=false
+```
+
+Эту переменную можно добавить в `.env`. Тогда backend не будет пытаться отправлять email и регистрация не упадет из-за недоступного SMTP.
+
 
 
 ## Getting started

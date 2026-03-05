@@ -27,6 +27,9 @@ public class EmailService {
     @Value("${spring.application.url}")
     private String url;
 
+    @Value("${app.mail.enabled:true}")
+    private boolean mailEnabled;
+
     @Value("templates/confirm_register.html")
     private ClassPathResource confirmationTemplate;
 
@@ -71,6 +74,11 @@ public class EmailService {
     }
 
     private void sendEmail(String to, String subject, String body, String typeMessage) throws MessagingException {
+       if (!mailEnabled) {
+           log.warn("Email sending is disabled (app.mail.enabled=false). Skip sending to {}", to);
+           return;
+       }
+
        if (typeMessage.equals("html")) {
            MimeMessage message = mailSender.createMimeMessage();
            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
