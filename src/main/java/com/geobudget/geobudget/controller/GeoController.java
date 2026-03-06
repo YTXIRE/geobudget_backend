@@ -46,8 +46,12 @@ public class GeoController {
 
     @GetCityByIpExternalIpDoc
     @GetMapping("/get-city-by-external-ip")
-    public ResponseEntity<CountryAndCity> getExternalIp(HttpServletRequest request) {
-        return ResponseEntity.ok(geoIpService.getCityByExternalIp(request));
+    public ResponseEntity<CountryAndCity> getCityByExternalIp(
+            HttpServletRequest request,
+            @RequestParam(required = false) String ip
+    ) {
+        String resolvedIp = (ip != null && !ip.isBlank()) ? ip : geoIpService.getExternalIp(request);
+        return ResponseEntity.ok(geoIpService.getCityAndCountryByIp(resolvedIp));
     }
 
     @GetGeoCompany

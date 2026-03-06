@@ -42,7 +42,7 @@ public class Transaction {
     private BigDecimal amount;
 
     @ManyToOne
-    @JoinColumn(name = "category_id")
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
     @Column(name = "description", length = 255)
@@ -50,6 +50,36 @@ public class Transaction {
 
     @Column(name = "occurred_at", nullable = false)
     private LocalDateTime occurredAt;
+
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private BigDecimal longitude;
+
+    @Column(name = "city", length = 120)
+    private String city;
+
+    @Column(name = "country", length = 120)
+    private String country;
+
+    @Column(name = "place_id", length = 255)
+    private String placeId;
+
+    @Column(name = "location_source", length = 16)
+    private String locationSource;
+
+    @Column(name = "original_amount", precision = 14, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(name = "original_currency", length = 3)
+    private String originalCurrency;
+
+    @Column(name = "rate_to_base", precision = 14, scale = 6)
+    private BigDecimal rateToBase;
+
+    @Column(name = "base_amount", precision = 14, scale = 2)
+    private BigDecimal baseAmount;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

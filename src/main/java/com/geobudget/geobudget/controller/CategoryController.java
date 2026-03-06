@@ -2,6 +2,7 @@ package com.geobudget.geobudget.controller;
 
 import com.geobudget.geobudget.docs.companyInfo.GetCompanyByInnDoc;
 import com.geobudget.geobudget.dto.CategoryDto;
+import com.geobudget.geobudget.dto.ContentResponse;
 import com.geobudget.geobudget.security.CustomUserDetails;
 import com.geobudget.geobudget.service.CategoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,8 +26,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-import java.util.List;
-
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -38,12 +37,14 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDto>> getCategories(
+    public ResponseEntity<ContentResponse<CategoryDto>> getCategories(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false) String transactionType,
             @RequestParam(defaultValue = "false") boolean includeArchived
     ) {
-        return ResponseEntity.ok(categoryService.getCategoriesForUser(userDetails.getUserId(), transactionType, includeArchived));
+        return ResponseEntity.ok(ContentResponse.<CategoryDto>builder()
+                .content(categoryService.getCategoriesForUser(userDetails.getUserId(), transactionType, includeArchived))
+                .build());
     }
 
     @GetMapping("/categories/{id}")

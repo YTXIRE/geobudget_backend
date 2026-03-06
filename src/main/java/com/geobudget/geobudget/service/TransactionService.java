@@ -1,6 +1,7 @@
 package com.geobudget.geobudget.service;
 
 import com.geobudget.geobudget.dto.transaction.TransactionCreateRequest;
+import com.geobudget.geobudget.dto.transaction.TransactionCategoryDto;
 import com.geobudget.geobudget.dto.transaction.TransactionResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
@@ -42,6 +43,8 @@ public class TransactionService {
                 .isDeleted(false)
                 .build();
 
+        applyExtraFields(transaction, request);
+
         return mapToResponse(transactionRepository.save(transaction));
     }
 
@@ -52,6 +55,8 @@ public class TransactionService {
             LocalDateTime from,
             LocalDateTime to,
             Long categoryId,
+            String city,
+            String country,
             Pageable pageable
     ) {
         validatePeriod(from, to);
@@ -64,7 +69,7 @@ public class TransactionService {
             resolveCategory(userId, categoryId);
         }
 
-        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId);
+        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId, city, country);
 
         return transactionRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
@@ -89,6 +94,7 @@ public class TransactionService {
         transaction.setCategory(category);
         transaction.setDescription(request.getDescription());
         transaction.setOccurredAt(request.getOccurredAt());
+        applyExtraFields(transaction, request);
 
         return mapToResponse(transactionRepository.save(transaction));
     }
@@ -134,6 +140,42 @@ public class TransactionService {
         return category;
     }
 
+    private void applyExtraFields(Transaction transaction, TransactionCreateRequest request) {
+        validateGeoPair(request.getLatitude(), request.getLongitude());
+
+        transaction.setLatitude(request.getLatitude());
+        transaction.setLongitude(request.getLongitude());
+        transaction.setCity(request.getCity());
+        transaction.setCountry(request.getCountry());
+        transaction.setPlaceId(request.getPlaceId());
+        transaction.setLocationSource(request.getLocationSource());
+        transaction.setOriginalAmount(request.getOriginalAmount());
+        transaction.setOriginalCurrency(request.getOriginalCurrency());
+        transaction.setRateToBase(request.getRateToBase());
+        transaction.setBaseAmount(request.getBaseAmount());
+    }
+
+    private void applyExtraFields(Transaction transaction, TransactionUpdateRequest request) {
+        validateGeoPair(request.getLatitude(), request.getLongitude());
+
+        transaction.setLatitude(request.getLatitude());
+        transaction.setLongitude(request.getLongitude());
+        transaction.setCity(request.getCity());
+        transaction.setCountry(request.getCountry());
+        transaction.setPlaceId(request.getPlaceId());
+        transaction.setLocationSource(request.getLocationSource());
+        transaction.setOriginalAmount(request.getOriginalAmount());
+        transaction.setOriginalCurrency(request.getOriginalCurrency());
+        transaction.setRateToBase(request.getRateToBase());
+        transaction.setBaseAmount(request.getBaseAmount());
+    }
+
+    private void validateGeoPair(BigDecimal latitude, BigDecimal longitude) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new IllegalArgumentException("latitude and longitude must be provided together");
+        }
+    }
+
     private Category resolveCategory(Long userId, Long categoryId) {
         if (categoryId == null) {
             return null;
@@ -159,8 +201,23 @@ public class TransactionService {
                 .type(transaction.getType())
                 .amount(transaction.getAmount())
                 .categoryId(transaction.getCategory() != null ? transaction.getCategory().getId() : null)
+                .category(transaction.getCategory() == null ? null : TransactionCategoryDto.builder()
+                        .id(transaction.getCategory().getId())
+                        .name(transaction.getCategory().getName())
+                        .transactionType(transaction.getCategory().getTransactionType())
+                        .build())
                 .description(transaction.getDescription())
                 .occurredAt(transaction.getOccurredAt())
+                .latitude(transaction.getLatitude())
+                .longitude(transaction.getLongitude())
+                .city(transaction.getCity())
+                .country(transaction.getCountry())
+                .placeId(transaction.getPlaceId())
+                .locationSource(transaction.getLocationSource())
+                .originalAmount(transaction.getOriginalAmount())
+                .originalCurrency(transaction.getOriginalCurrency())
+                .rateToBase(transaction.getRateToBase())
+                .baseAmount(transaction.getBaseAmount())
                 .createdAt(transaction.getCreatedAt())
                 .updatedAt(transaction.getUpdatedAt())
                 .build();
@@ -172,7 +229,15 @@ public class TransactionService {
         }
     }
 
-    private Specification<Transaction> buildSpec(Long userId, String type, LocalDateTime from, LocalDateTime to, Long categoryId) {
+    private Specification<Transaction> buildSpec(
+            Long userId,
+            String type,
+            LocalDateTime from,
+            LocalDateTime to,
+            Long categoryId,
+            String city,
+            String country
+    ) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("userId"), userId));
@@ -192,6 +257,14 @@ public class TransactionService {
 
             if (categoryId != null) {
                 predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            }
+
+            if (city != null && !city.isBlank()) {
+                predicates.add(cb.equal(root.get("city"), city));
+            }
+
+            if (country != null && !country.isBlank()) {
+                predicates.add(cb.equal(root.get("country"), country));
             }
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));

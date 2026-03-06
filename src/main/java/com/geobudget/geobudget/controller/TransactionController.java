@@ -57,6 +57,16 @@ public class TransactionController {
                 .categoryId(request.getCategoryId())
                 .description(request.getDescription())
                 .occurredAt(request.getOccurredAt())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .city(request.getCity())
+                .country(request.getCountry())
+                .placeId(request.getPlaceId())
+                .locationSource(request.getLocationSource())
+                .originalAmount(request.getOriginalAmount())
+                .originalCurrency(request.getOriginalCurrency())
+                .rateToBase(request.getRateToBase())
+                .baseAmount(request.getBaseAmount())
                 .build();
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -70,9 +80,11 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String country,
             @PageableDefault(size = 20, sort = "occurredAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.ok(transactionService.getAll(userDetails.getUserId(), type, from, to, categoryId, pageable));
+        return ResponseEntity.ok(transactionService.getAll(userDetails.getUserId(), type, from, to, categoryId, city, country, pageable));
     }
 
     @GetMapping("/{id}")

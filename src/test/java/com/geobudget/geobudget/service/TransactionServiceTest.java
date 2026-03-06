@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -99,14 +100,14 @@ class TransactionServiceTest {
         LocalDateTime from = LocalDateTime.now().minusDays(10);
         LocalDateTime to = LocalDateTime.now();
 
-        when(transactionRepository.findAllByFilters(eq(7L), eq("income"), eq(from), eq(to), eq(2L), any(PageRequest.class)))
+        when(transactionRepository.findAll(any(Specification.class), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         when(categoryRepository.findById(2L)).thenReturn(Optional.of(Category.builder().id(2L).transactionType("income").type("system").build()));
 
-        transactionService.getAll(7L, "income", from, to, 2L, PageRequest.of(0, 20));
+        transactionService.getAll(7L, "income", from, to, 2L, null, null, PageRequest.of(0, 20));
 
-        verify(transactionRepository).findAllByFilters(7L, "income", from, to, 2L, PageRequest.of(0, 20));
+        verify(transactionRepository).findAll(any(Specification.class), eq(PageRequest.of(0, 20)));
     }
 
     @Test
@@ -136,6 +137,24 @@ class TransactionServiceTest {
                 () -> transactionService.create(7L, incomeRequest));
 
         assertEquals("Transaction type does not match category type", ex.getMessage());
+    }
+
+    @Test
+    void create_whenOnlyLatitudeProvided_failsValidation() {
+        TransactionCreateRequest request = TransactionCreateRequest.builder()
+                .type("income")
+                .amount(new BigDecimal("5000.00"))
+                .categoryId(2L)
+                .occurredAt(LocalDateTime.now())
+                .latitude(new BigDecimal("55.75"))
+                .build();
+
+        when(categoryRepository.findById(2L)).thenReturn(Optional.of(Category.builder().id(2L).transactionType("income").type("system").build()));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> transactionService.create(7L, request));
+
+        assertEquals("latitude and longitude must be provided together", ex.getMessage());
     }
 
     @Test

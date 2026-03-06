@@ -198,7 +198,7 @@ public class CategoryService {
                 .isArchived(category.getIsArchived())
                 .groupId(category.getGroup() != null ? category.getGroup().getId() : null)
                 .group(category.getGroup() != null ? mapToGroupDto(category.getGroup()) : null)
-                .type(category.getType())
+                .type("system".equals(category.getType()) ? "system" : "custom")
                 .transactionType(category.getTransactionType())
                 .userId(category.getUserId())
                 .transactionCount(transactionCount)
