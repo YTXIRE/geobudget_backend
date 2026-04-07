@@ -8,6 +8,7 @@ import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.security.CustomUserDetails;
 import com.geobudget.geobudget.service.TransactionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -41,15 +42,17 @@ public class TransactionController {
     @PostMapping
     public ResponseEntity<TransactionResponse> create(
             @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest,
             @Valid @RequestBody TransactionCreateRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(transactionService.create(userDetails.getUserId(), request));
+                .body(transactionService.create(userDetails.getUserId(), request, httpRequest));
     }
 
     @PostMapping("/income")
     public ResponseEntity<TransactionResponse> createIncome(
             @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest,
             @Valid @RequestBody TransactionIncomeCreateRequest request
     ) {
         TransactionCreateRequest incomeRequest = TransactionCreateRequest.builder()
@@ -71,7 +74,7 @@ public class TransactionController {
                 .build();
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(transactionService.create(userDetails.getUserId(), incomeRequest));
+                .body(transactionService.create(userDetails.getUserId(), incomeRequest, httpRequest));
     }
 
     @GetMapping

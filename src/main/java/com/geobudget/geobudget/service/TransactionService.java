@@ -6,14 +6,17 @@ import com.geobudget.geobudget.dto.transaction.TransactionResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionStatsResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
+import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionStatsProjection;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -25,15 +28,23 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
+    private final GeoIpService geoIpService;
 
     @Transactional
     public TransactionResponse create(Long userId, TransactionCreateRequest request) {
+        return create(userId, request, null);
+    }
+
+    @Transactional
+    public TransactionResponse create(Long userId, TransactionCreateRequest request, HttpServletRequest httpRequest) {
         Category category = validateBusinessRules(userId, request.getType(), request.getCategoryId());
+        enrichLocationFromIp(request, httpRequest);
 
         Transaction transaction = Transaction.builder()
                 .userId(userId)
@@ -189,6 +200,33 @@ public class TransactionService {
         transaction.setBaseAmount(request.getBaseAmount());
     }
 
+    private void enrichLocationFromIp(TransactionCreateRequest request, HttpServletRequest httpRequest) {
+        if (httpRequest == null || !isLocationMissing(request)) {
+            return;
+        }
+
+        try {
+            CountryAndCity location = geoIpService.getCityByExternalIp(httpRequest);
+            if (location == null) {
+                return;
+            }
+
+            if (location.getLatitude() != null) {
+                request.setLatitude(BigDecimal.valueOf(location.getLatitude()));
+            }
+
+            if (location.getLongitude() != null) {
+                request.setLongitude(BigDecimal.valueOf(location.getLongitude()));
+            }
+
+            request.setCity(location.getCity());
+            request.setCountry(location.getCountry());
+            request.setLocationSource("ip");
+        } catch (Exception e) {
+            log.warn("TransactionService.enrichLocationFromIp: failed to resolve IP location", e);
+        }
+    }
+
     private void applyExtraFields(Transaction transaction, TransactionUpdateRequest request) {
         validateGeoPair(request.getLatitude(), request.getLongitude());
 
@@ -208,6 +246,18 @@ public class TransactionService {
         if ((latitude == null) != (longitude == null)) {
             throw new IllegalArgumentException("latitude and longitude must be provided together");
         }
+    }
+
+    private boolean isLocationMissing(TransactionCreateRequest request) {
+        return request.getLatitude() == null
+                && request.getLongitude() == null
+                && isBlank(request.getCity())
+                && isBlank(request.getCountry())
+                && isBlank(request.getPlaceId());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Category resolveCategory(Long userId, Long categoryId) {

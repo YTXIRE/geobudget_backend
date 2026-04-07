@@ -3,6 +3,7 @@ package com.geobudget.geobudget.service;
 import com.geobudget.geobudget.dto.transaction.TransactionCreateRequest;
 import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
+import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.repository.CategoryRepository;
@@ -12,12 +13,14 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -40,6 +43,9 @@ class TransactionServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private GeoIpService geoIpService;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -155,6 +161,64 @@ class TransactionServiceTest {
                 () -> transactionService.create(7L, request));
 
         assertEquals("latitude and longitude must be provided together", ex.getMessage());
+    }
+
+    @Test
+    void create_whenLocationMissing_enrichesFromIp() {
+        MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+        httpRequest.setRemoteAddr("127.0.0.1");
+
+        TransactionCreateRequest request = TransactionCreateRequest.builder()
+                .type("income")
+                .amount(new BigDecimal("5000.00"))
+                .categoryId(2L)
+                .occurredAt(LocalDateTime.now())
+                .build();
+
+        when(categoryRepository.findById(2L)).thenReturn(Optional.of(Category.builder().id(2L).transactionType("income").type("system").build()));
+        when(geoIpService.getCityByExternalIp(httpRequest)).thenReturn(new CountryAndCity("Poland", "Warsaw", 52.2297, 21.0122));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        transactionService.create(7L, request, httpRequest);
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+
+        Transaction saved = captor.getValue();
+        assertEquals("Warsaw", saved.getCity());
+        assertEquals("Poland", saved.getCountry());
+        assertEquals(new BigDecimal("52.2297"), saved.getLatitude());
+        assertEquals(new BigDecimal("21.0122"), saved.getLongitude());
+        assertEquals("ip", saved.getLocationSource());
+    }
+
+    @Test
+    void create_whenLocationProvided_doesNotOverrideWithIp() {
+        MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+        httpRequest.setRemoteAddr("127.0.0.1");
+
+        TransactionCreateRequest request = TransactionCreateRequest.builder()
+                .type("income")
+                .amount(new BigDecimal("5000.00"))
+                .categoryId(2L)
+                .occurredAt(LocalDateTime.now())
+                .city("Minsk")
+                .country("Belarus")
+                .locationSource("manual")
+                .build();
+
+        when(categoryRepository.findById(2L)).thenReturn(Optional.of(Category.builder().id(2L).transactionType("income").type("system").build()));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        transactionService.create(7L, request, httpRequest);
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+
+        Transaction saved = captor.getValue();
+        assertEquals("Minsk", saved.getCity());
+        assertEquals("Belarus", saved.getCountry());
+        assertEquals("manual", saved.getLocationSource());
     }
 
     @Test
