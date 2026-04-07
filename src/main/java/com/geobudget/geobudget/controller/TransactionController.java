@@ -3,6 +3,7 @@ package com.geobudget.geobudget.controller;
 import com.geobudget.geobudget.dto.transaction.TransactionCreateRequest;
 import com.geobudget.geobudget.dto.transaction.TransactionIncomeCreateRequest;
 import com.geobudget.geobudget.dto.transaction.TransactionResponse;
+import com.geobudget.geobudget.dto.transaction.TransactionStatsResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.security.CustomUserDetails;
@@ -120,5 +121,26 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
     ) {
         return ResponseEntity.ok(transactionService.getSummary(userDetails.getUserId(), from, to));
+    }
+
+    @GetMapping("/stats/overview")
+    public ResponseEntity<TransactionStatsResponse> getOverviewStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(transactionService.getOverviewStats(userDetails.getUserId()));
+    }
+
+    @GetMapping("/stats/income")
+    public ResponseEntity<TransactionStatsResponse> getIncomeStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(transactionService.getIncomeStats(userDetails.getUserId()));
+    }
+
+    @GetMapping("/stats/expense")
+    public ResponseEntity<TransactionStatsResponse> getExpenseStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(transactionService.getExpenseStats(userDetails.getUserId()));
     }
 }

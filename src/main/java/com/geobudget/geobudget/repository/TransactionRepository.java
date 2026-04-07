@@ -25,4 +25,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
               AND t.occurredAt <= COALESCE(:to, t.occurredAt)
             """)
     TransactionSummaryProjection getSummary(Long userId, LocalDateTime from, LocalDateTime to);
+
+    @Query("""
+            SELECT
+                COALESCE(SUM(t.amount), 0) AS totalAmount,
+                COUNT(t) AS count
+            FROM Transaction t
+            WHERE t.userId = :userId
+              AND t.isDeleted = false
+              AND (:type IS NULL OR t.type = :type)
+            """)
+    TransactionStatsProjection getStats(Long userId, String type);
 }

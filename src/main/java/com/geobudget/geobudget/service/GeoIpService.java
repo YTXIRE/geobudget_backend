@@ -23,8 +23,10 @@ public class GeoIpService {
             JSONObject json = new JSONObject(response);
             String city = json.optString("city", null);
             String country = json.optString("country", null);
-            log.info("GeoIpService.getCityByIp: ip={} city={}", ip, city);
-            return new CountryAndCity(country, city);
+            Double latitude = json.has("lat") && !json.isNull("lat") ? json.getDouble("lat") : null;
+            Double longitude = json.has("lon") && !json.isNull("lon") ? json.getDouble("lon") : null;
+            log.info("GeoIpService.getCityByIp: ip={} city={} lat={} lon={}", ip, city, latitude, longitude);
+            return new CountryAndCity(country, city, latitude, longitude);
         } catch (Exception e) {
             log.error("GeoIpService.getCityByIp: failed for ip={}", ip, e);
             return null;

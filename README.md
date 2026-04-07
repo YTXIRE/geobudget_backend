@@ -39,6 +39,38 @@ docker rm geobudget-postgres
 
 После запуска backend Liquibase автоматически создаст схему и заполнит стартовые данные.
 
+## Geo API контракт
+
+- `GET /api/v1/geo/get-city-by-external-ip` — возвращает город/страну и координаты, определённые по IP пользователя.
+- Ответ:
+
+```json
+{
+  "country": "Россия",
+  "city": "Москва",
+  "latitude": 55.751244,
+  "longitude": 37.618423
+}
+```
+
+- Клиентские приложения должны сохранять источник геоданных в `locationSource` и использовать одно из значений `gps`, `map`, `manual`, `ip` (валидация описана в DTO `TransactionCreateRequest`).
+
+- DTO `CountryAndCity` описывается полями `country`, `city`, `latitude`, `longitude` и лежит в `com.geobudget.geobudget.dto.geoCompany`.
+
+## Transaction stats API
+
+- `GET /api/transactions/stats/overview` — сумма и количество всех операций пользователя.
+- `GET /api/transactions/stats/income` — сумма и количество только доходов.
+- `GET /api/transactions/stats/expense` — сумма и количество только расходов.
+- Каждый ответ имеет вид:
+
+```json
+{
+  "totalAmount": 12345.67,
+  "count": 42
+}
+```
+
 ## Если падает отправка почты локально
 
 Если при регистрации возникает ошибка подключения к SMTP (`smtp.gmail.com:587`, `Connection refused`), отключите отправку писем для локальной разработки:

@@ -3,12 +3,14 @@ package com.geobudget.geobudget.service;
 import com.geobudget.geobudget.dto.transaction.TransactionCreateRequest;
 import com.geobudget.geobudget.dto.transaction.TransactionCategoryDto;
 import com.geobudget.geobudget.dto.transaction.TransactionResponse;
+import com.geobudget.geobudget.dto.transaction.TransactionStatsResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
+import com.geobudget.geobudget.repository.TransactionStatsProjection;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -119,6 +121,38 @@ public class TransactionService {
                 .income(income)
                 .expense(expense)
                 .balance(income.subtract(expense))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionStatsResponse getOverviewStats(Long userId) {
+        return buildStatsResponse(userId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionStatsResponse getIncomeStats(Long userId) {
+        return buildStatsResponse(userId, "income");
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionStatsResponse getExpenseStats(Long userId) {
+        return buildStatsResponse(userId, "expense");
+    }
+
+    private TransactionStatsResponse buildStatsResponse(Long userId, String type) {
+        if (type != null && !"income".equals(type) && !"expense".equals(type)) {
+            throw new IllegalArgumentException("type must be income or expense");
+        }
+
+        TransactionStatsProjection projection = transactionRepository.getStats(userId, type);
+        BigDecimal total = projection != null && projection.getTotalAmount() != null
+                ? projection.getTotalAmount()
+                : BigDecimal.ZERO;
+        Long count = projection != null && projection.getCount() != null ? projection.getCount() : 0L;
+
+        return TransactionStatsResponse.builder()
+                .totalAmount(total)
+                .count(count)
                 .build();
     }
 
