@@ -57,3 +57,5 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V028__set_income_categories_colors.sql
   - include:
       file: db/changelog/changeset/geobudget_V029__expand_transactions_stage1.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V030__allow_ip_location_source.sql

@@ -48,7 +48,7 @@ public class TransactionIncomeCreateRequest {
     @Size(max = 255, message = "placeId size must be <= 255")
     private String placeId;
 
-    @Pattern(regexp = "gps|manual|map", message = "locationSource must be gps, manual or map")
+    @Pattern(regexp = "gps|manual|map|ip", message = "locationSource must be gps, manual, map or ip")
     private String locationSource;
 
     @DecimalMin(value = "0.01", message = "originalAmount must be greater than 0")
