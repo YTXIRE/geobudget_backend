@@ -192,6 +192,7 @@ public class TransactionService {
         transaction.setLongitude(request.getLongitude());
         transaction.setCity(request.getCity());
         transaction.setCountry(request.getCountry());
+        transaction.setRegion(request.getRegion());
         transaction.setPlaceId(request.getPlaceId());
         transaction.setLocationSource(request.getLocationSource());
         transaction.setOriginalAmount(request.getOriginalAmount());
@@ -221,6 +222,7 @@ public class TransactionService {
 
             request.setCity(location.getCity());
             request.setCountry(location.getCountry());
+            request.setRegion(location.getRegion());
             request.setLocationSource("ip");
         } catch (Exception e) {
             log.warn("TransactionService.enrichLocationFromIp: failed to resolve IP location", e);
@@ -234,6 +236,7 @@ public class TransactionService {
         transaction.setLongitude(request.getLongitude());
         transaction.setCity(request.getCity());
         transaction.setCountry(request.getCountry());
+        transaction.setRegion(request.getRegion());
         transaction.setPlaceId(request.getPlaceId());
         transaction.setLocationSource(request.getLocationSource());
         transaction.setOriginalAmount(request.getOriginalAmount());
@@ -253,6 +256,7 @@ public class TransactionService {
                 && request.getLongitude() == null
                 && isBlank(request.getCity())
                 && isBlank(request.getCountry())
+                && isBlank(request.getRegion())
                 && isBlank(request.getPlaceId());
     }
 
@@ -296,6 +300,7 @@ public class TransactionService {
                 .longitude(transaction.getLongitude())
                 .city(transaction.getCity())
                 .country(transaction.getCountry())
+                .region(transaction.getRegion())
                 .placeId(transaction.getPlaceId())
                 .locationSource(transaction.getLocationSource())
                 .originalAmount(transaction.getOriginalAmount())

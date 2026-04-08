@@ -65,6 +65,7 @@ public class TransactionController {
                 .longitude(request.getLongitude())
                 .city(request.getCity())
                 .country(request.getCountry())
+                .region(request.getRegion())
                 .placeId(request.getPlaceId())
                 .locationSource(request.getLocationSource())
                 .originalAmount(request.getOriginalAmount())

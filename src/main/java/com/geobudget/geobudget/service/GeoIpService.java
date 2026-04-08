@@ -32,12 +32,14 @@ public class GeoIpService {
             JSONObject json = new JSONObject(response);
             String city = json.optString("city", null);
             String country = json.optString("country", null);
+            String region = json.optString("regionName", null);
             Double latitude = json.has("lat") && !json.isNull("lat") ? json.getDouble("lat") : null;
             Double longitude = json.has("lon") && !json.isNull("lon") ? json.getDouble("lon") : null;
-            log.info("GeoIpService.getCityByIp: ip={} city={} lat={} lon={}", ip, city, latitude, longitude);
+            log.info("GeoIpService.getCityByIp: ip={} city={} region={} lat={} lon={}", ip, city, region, latitude, longitude);
             CountryAndCity data = new CountryAndCity();
             data.setCountry(country);
             data.setCity(city);
+            data.setRegion(region);
             data.setLatitude(latitude);
             data.setLongitude(longitude);
             return data;

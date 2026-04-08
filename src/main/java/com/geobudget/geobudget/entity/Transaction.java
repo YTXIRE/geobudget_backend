@@ -63,6 +63,9 @@ public class Transaction {
     @Column(name = "country", length = 120)
     private String country;
 
+    @Column(name = "region", length = 160)
+    private String region;
+
     @Column(name = "place_id", length = 255)
     private String placeId;
 

@@ -3,6 +3,7 @@ package com.geobudget.geobudget.dto.geoCompany;
 public class CountryAndCity {
     private String country;
     private String city;
+    private String region;
     private Double latitude;
     private Double longitude;
 
@@ -12,6 +13,14 @@ public class CountryAndCity {
     public CountryAndCity(String country, String city, Double latitude, Double longitude) {
         this.country = country;
         this.city = city;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    public CountryAndCity(String country, String city, String region, Double latitude, Double longitude) {
+        this.country = country;
+        this.city = city;
+        this.region = region;
         this.latitude = latitude;
         this.longitude = longitude;
     }
@@ -30,6 +39,14 @@ public class CountryAndCity {
 
     public void setCity(String city) {
         this.city = city;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
     }
 
     public Double getLatitude() {

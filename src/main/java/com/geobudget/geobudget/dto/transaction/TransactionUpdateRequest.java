@@ -50,6 +50,9 @@ public class TransactionUpdateRequest {
     @Size(max = 120, message = "country size must be <= 120")
     private String country;
 
+    @Size(max = 160, message = "region size must be <= 160")
+    private String region;
+
     @Size(max = 255, message = "placeId size must be <= 255")
     private String placeId;
 
