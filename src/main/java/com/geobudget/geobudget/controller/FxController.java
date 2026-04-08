@@ -2,12 +2,15 @@ package com.geobudget.geobudget.controller;
 
 import com.geobudget.geobudget.dto.fx.FxRateResponse;
 import com.geobudget.geobudget.service.FxRateService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/fx")
@@ -22,16 +25,12 @@ public class FxController {
     @GetMapping("/rate")
     public ResponseEntity<FxRateResponse> getRate(
             @RequestParam String from,
-            @RequestParam String to
+            @RequestParam String to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         String normalizedFrom = fxRateService.normalizeCurrency(from);
         String normalizedTo = fxRateService.normalizeCurrency(to);
 
-        return ResponseEntity.ok(new FxRateResponse(
-                normalizedFrom,
-                normalizedTo,
-                fxRateService.getRate(normalizedFrom, normalizedTo),
-                "frankfurter"
-        ));
+        return ResponseEntity.ok(fxRateService.getRate(normalizedFrom, normalizedTo, date));
     }
 }

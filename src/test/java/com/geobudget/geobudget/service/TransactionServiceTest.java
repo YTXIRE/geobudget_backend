@@ -7,6 +7,7 @@ import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.entity.User;
+import com.geobudget.geobudget.dto.fx.FxRateResponse;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
@@ -25,6 +26,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -236,11 +238,12 @@ class TransactionServiceTest {
 
     @Test
     void create_whenCurrencyDiffersFromUserBase_calculatesBaseAmount() {
+        LocalDateTime occurredAt = LocalDateTime.of(2026, 4, 8, 10, 0);
         TransactionCreateRequest request = TransactionCreateRequest.builder()
                 .type("expense")
                 .amount(new BigDecimal("100.00"))
                 .categoryId(5L)
-                .occurredAt(LocalDateTime.now())
+                .occurredAt(occurredAt)
                 .originalCurrency("USD")
                 .build();
 
@@ -250,7 +253,8 @@ class TransactionServiceTest {
         when(categoryRepository.findById(5L)).thenReturn(Optional.of(
                 Category.builder().id(5L).transactionType("expense").type("system").build()
         ));
-        when(fxRateService.getRate("USD", "EUR")).thenReturn(new BigDecimal("0.920000"));
+        when(fxRateService.getRate("USD", "EUR", LocalDate.of(2026, 4, 8)))
+                .thenReturn(new FxRateResponse("USD", "EUR", LocalDate.of(2026, 4, 8), new BigDecimal("0.920000"), "frankfurter", false));
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         transactionService.create(7L, request);
@@ -262,6 +266,108 @@ class TransactionServiceTest {
         assertEquals("USD", saved.getOriginalCurrency());
         assertEquals(new BigDecimal("0.920000"), saved.getRateToBase());
         assertEquals(new BigDecimal("92.00"), saved.getBaseAmount());
+    }
+
+    @Test
+    void create_whenCurrencyMatchesUserBase_usesUnitRate() {
+        TransactionCreateRequest request = TransactionCreateRequest.builder()
+                .type("expense")
+                .amount(new BigDecimal("250.00"))
+                .categoryId(5L)
+                .occurredAt(LocalDateTime.now())
+                .originalCurrency("RUB")
+                .build();
+
+        when(categoryRepository.findById(5L)).thenReturn(Optional.of(
+                Category.builder().id(5L).transactionType("expense").type("system").build()
+        ));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        transactionService.create(7L, request);
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+        Transaction saved = captor.getValue();
+
+        assertEquals(new BigDecimal("1.000000"), saved.getRateToBase());
+        assertEquals(new BigDecimal("250.00"), saved.getBaseAmount());
+    }
+
+    @Test
+    void create_whenFxUnavailable_usesFallbackClientRate() {
+        TransactionCreateRequest request = TransactionCreateRequest.builder()
+                .type("expense")
+                .amount(new BigDecimal("100.00"))
+                .categoryId(5L)
+                .occurredAt(LocalDateTime.of(2026, 4, 8, 10, 0))
+                .originalCurrency("USD")
+                .rateToBase(new BigDecimal("80.500000"))
+                .baseAmount(new BigDecimal("8050.00"))
+                .build();
+
+        when(userRepository.findById(7L)).thenReturn(Optional.of(
+                User.builder().id(7L).baseCurrency("RUB").build()
+        ));
+        when(categoryRepository.findById(5L)).thenReturn(Optional.of(
+                Category.builder().id(5L).transactionType("expense").type("system").build()
+        ));
+        when(fxRateService.getRate("USD", "RUB", LocalDate.of(2026, 4, 8)))
+                .thenThrow(new IllegalStateException("FX unavailable"));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        transactionService.create(7L, request);
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+        Transaction saved = captor.getValue();
+
+        assertEquals(new BigDecimal("80.500000"), saved.getRateToBase());
+        assertEquals(new BigDecimal("8050.00"), saved.getBaseAmount());
+    }
+
+    @Test
+    void create_afterProfileCurrencyChanged_usesNewBaseCurrencyOnlyForNewTransaction() {
+        TransactionCreateRequest oldRequest = TransactionCreateRequest.builder()
+                .type("expense")
+                .amount(new BigDecimal("100.00"))
+                .categoryId(5L)
+                .occurredAt(LocalDateTime.of(2026, 4, 8, 10, 0))
+                .originalCurrency("USD")
+                .build();
+
+        TransactionCreateRequest newRequest = TransactionCreateRequest.builder()
+                .type("expense")
+                .amount(new BigDecimal("100.00"))
+                .categoryId(5L)
+                .occurredAt(LocalDateTime.of(2026, 4, 9, 10, 0))
+                .originalCurrency("USD")
+                .build();
+
+        when(categoryRepository.findById(5L)).thenReturn(Optional.of(
+                Category.builder().id(5L).transactionType("expense").type("system").build()
+        ));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findById(7L))
+                .thenReturn(Optional.of(User.builder().id(7L).baseCurrency("RUB").build()))
+                .thenReturn(Optional.of(User.builder().id(7L).baseCurrency("EUR").build()));
+        when(fxRateService.getRate("USD", "RUB", LocalDate.of(2026, 4, 8)))
+                .thenReturn(new FxRateResponse("USD", "RUB", LocalDate.of(2026, 4, 8), new BigDecimal("80.000000"), "frankfurter", false));
+        when(fxRateService.getRate("USD", "EUR", LocalDate.of(2026, 4, 9)))
+                .thenReturn(new FxRateResponse("USD", "EUR", LocalDate.of(2026, 4, 9), new BigDecimal("0.910000"), "frankfurter", false));
+
+        transactionService.create(7L, oldRequest);
+        transactionService.create(7L, newRequest);
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+
+        List<Transaction> saved = captor.getAllValues();
+        assertEquals("USD", saved.get(0).getOriginalCurrency());
+        assertEquals("USD", saved.get(1).getOriginalCurrency());
+        assertEquals(new BigDecimal("80.000000"), saved.get(0).getRateToBase());
+        assertEquals(new BigDecimal("0.910000"), saved.get(1).getRateToBase());
+        assertEquals(new BigDecimal("8000.00"), saved.get(0).getBaseAmount());
+        assertEquals(new BigDecimal("91.00"), saved.get(1).getBaseAmount());
     }
 
     @Test

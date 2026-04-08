@@ -7,6 +7,7 @@ import com.geobudget.geobudget.dto.transaction.TransactionStatsResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionSummaryResponse;
 import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
+import com.geobudget.geobudget.dto.fx.FxRateResponse;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.entity.User;
@@ -210,6 +211,7 @@ public class TransactionService {
                 request.getOriginalCurrency(),
                 request.getRateToBase(),
                 request.getBaseAmount(),
+                request.getOccurredAt(),
                 user
         );
     }
@@ -259,6 +261,7 @@ public class TransactionService {
                 request.getOriginalCurrency(),
                 request.getRateToBase(),
                 request.getBaseAmount(),
+                request.getOccurredAt(),
                 user
         );
     }
@@ -270,6 +273,7 @@ public class TransactionService {
             String originalCurrencyRaw,
             BigDecimal fallbackRate,
             BigDecimal fallbackBaseAmount,
+            LocalDateTime occurredAt,
             User user
     ) {
         BigDecimal originalAmount = originalAmountRaw != null ? originalAmountRaw : amount;
@@ -284,7 +288,12 @@ public class TransactionService {
             baseAmount = originalAmount.setScale(2, RoundingMode.HALF_UP);
         } else {
             try {
-                rateToBase = fxRateService.getRate(originalCurrency, baseCurrency);
+                FxRateResponse rateResponse = fxRateService.getRate(
+                        originalCurrency,
+                        baseCurrency,
+                        occurredAt != null ? occurredAt.toLocalDate() : null
+                );
+                rateToBase = rateResponse.rate();
                 baseAmount = originalAmount.multiply(rateToBase).setScale(2, RoundingMode.HALF_UP);
             } catch (Exception e) {
                 if (fallbackRate != null && fallbackBaseAmount != null) {
