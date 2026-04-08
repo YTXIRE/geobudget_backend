@@ -13,6 +13,8 @@ public class UserDTO {
     private String username;
     private String phone;
     private String city;
+    private String homeCity;
     private String country;
+    private String baseCurrency;
     private Role role;
 }

@@ -48,6 +48,12 @@ public class User {
     @Column(length = 64)
     private String city;
 
+    @Column(name = "home_city", length = 120)
+    private String homeCity;
+
+    @Column(name = "base_currency", length = 3, nullable = false)
+    private String baseCurrency;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "country_id", nullable = false)
     private Country country;
@@ -60,4 +66,3 @@ public class User {
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 }
-

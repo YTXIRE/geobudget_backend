@@ -9,10 +9,12 @@ import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
+import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionStatsProjection;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
+import com.geobudget.geobudget.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @Service
@@ -35,6 +39,8 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final GeoIpService geoIpService;
+    private final UserRepository userRepository;
+    private final FxRateService fxRateService;
 
     @Transactional
     public TransactionResponse create(Long userId, TransactionCreateRequest request) {
@@ -43,6 +49,7 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse create(Long userId, TransactionCreateRequest request, HttpServletRequest httpRequest) {
+        User user = resolveUser(userId);
         Category category = validateBusinessRules(userId, request.getType(), request.getCategoryId());
         enrichLocationFromIp(request, httpRequest);
 
@@ -56,7 +63,7 @@ public class TransactionService {
                 .isDeleted(false)
                 .build();
 
-        applyExtraFields(transaction, request);
+        applyExtraFields(transaction, request, user);
 
         return mapToResponse(transactionRepository.save(transaction));
     }
@@ -99,6 +106,7 @@ public class TransactionService {
     public TransactionResponse update(Long userId, Long id, TransactionUpdateRequest request) {
         Transaction transaction = transactionRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
+        User user = resolveUser(userId);
 
         Category category = validateBusinessRules(userId, request.getType(), request.getCategoryId());
 
@@ -107,7 +115,7 @@ public class TransactionService {
         transaction.setCategory(category);
         transaction.setDescription(request.getDescription());
         transaction.setOccurredAt(request.getOccurredAt());
-        applyExtraFields(transaction, request);
+        applyExtraFields(transaction, request, user);
 
         return mapToResponse(transactionRepository.save(transaction));
     }
@@ -185,7 +193,7 @@ public class TransactionService {
         return category;
     }
 
-    private void applyExtraFields(Transaction transaction, TransactionCreateRequest request) {
+    private void applyExtraFields(Transaction transaction, TransactionCreateRequest request, User user) {
         validateGeoPair(request.getLatitude(), request.getLongitude());
 
         transaction.setLatitude(request.getLatitude());
@@ -195,10 +203,15 @@ public class TransactionService {
         transaction.setRegion(request.getRegion());
         transaction.setPlaceId(request.getPlaceId());
         transaction.setLocationSource(request.getLocationSource());
-        transaction.setOriginalAmount(request.getOriginalAmount());
-        transaction.setOriginalCurrency(request.getOriginalCurrency());
-        transaction.setRateToBase(request.getRateToBase());
-        transaction.setBaseAmount(request.getBaseAmount());
+        applyCurrencyFields(
+                transaction,
+                request.getAmount(),
+                request.getOriginalAmount(),
+                request.getOriginalCurrency(),
+                request.getRateToBase(),
+                request.getBaseAmount(),
+                user
+        );
     }
 
     private void enrichLocationFromIp(TransactionCreateRequest request, HttpServletRequest httpRequest) {
@@ -229,7 +242,7 @@ public class TransactionService {
         }
     }
 
-    private void applyExtraFields(Transaction transaction, TransactionUpdateRequest request) {
+    private void applyExtraFields(Transaction transaction, TransactionUpdateRequest request, User user) {
         validateGeoPair(request.getLatitude(), request.getLongitude());
 
         transaction.setLatitude(request.getLatitude());
@@ -239,10 +252,55 @@ public class TransactionService {
         transaction.setRegion(request.getRegion());
         transaction.setPlaceId(request.getPlaceId());
         transaction.setLocationSource(request.getLocationSource());
-        transaction.setOriginalAmount(request.getOriginalAmount());
-        transaction.setOriginalCurrency(request.getOriginalCurrency());
-        transaction.setRateToBase(request.getRateToBase());
-        transaction.setBaseAmount(request.getBaseAmount());
+        applyCurrencyFields(
+                transaction,
+                request.getAmount(),
+                request.getOriginalAmount(),
+                request.getOriginalCurrency(),
+                request.getRateToBase(),
+                request.getBaseAmount(),
+                user
+        );
+    }
+
+    private void applyCurrencyFields(
+            Transaction transaction,
+            BigDecimal amount,
+            BigDecimal originalAmountRaw,
+            String originalCurrencyRaw,
+            BigDecimal fallbackRate,
+            BigDecimal fallbackBaseAmount,
+            User user
+    ) {
+        BigDecimal originalAmount = originalAmountRaw != null ? originalAmountRaw : amount;
+        String baseCurrency = normalizeCurrency(user.getBaseCurrency(), "RUB");
+        String originalCurrency = normalizeCurrency(originalCurrencyRaw, baseCurrency);
+
+        BigDecimal rateToBase;
+        BigDecimal baseAmount;
+
+        if (originalCurrency.equals(baseCurrency)) {
+            rateToBase = BigDecimal.ONE.setScale(6, RoundingMode.HALF_UP);
+            baseAmount = originalAmount.setScale(2, RoundingMode.HALF_UP);
+        } else {
+            try {
+                rateToBase = fxRateService.getRate(originalCurrency, baseCurrency);
+                baseAmount = originalAmount.multiply(rateToBase).setScale(2, RoundingMode.HALF_UP);
+            } catch (Exception e) {
+                if (fallbackRate != null && fallbackBaseAmount != null) {
+                    log.warn("TransactionService.applyCurrencyFields: fallback to client FX values for {} -> {}", originalCurrency, baseCurrency, e);
+                    rateToBase = fallbackRate.setScale(6, RoundingMode.HALF_UP);
+                    baseAmount = fallbackBaseAmount.setScale(2, RoundingMode.HALF_UP);
+                } else {
+                    throw new IllegalStateException("Не удалось получить курс валют для " + originalCurrency + " -> " + baseCurrency, e);
+                }
+            }
+        }
+
+        transaction.setOriginalAmount(originalAmount.setScale(2, RoundingMode.HALF_UP));
+        transaction.setOriginalCurrency(originalCurrency);
+        transaction.setRateToBase(rateToBase);
+        transaction.setBaseAmount(baseAmount);
     }
 
     private void validateGeoPair(BigDecimal latitude, BigDecimal longitude) {
@@ -262,6 +320,23 @@ public class TransactionService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String normalizeCurrency(String currency, String fallback) {
+        String normalized = currency == null || currency.isBlank()
+                ? fallback
+                : currency.trim().toUpperCase(Locale.ROOT);
+
+        if (!normalized.matches("[A-Z]{3}")) {
+            throw new IllegalArgumentException("currency must be ISO-4217 (3 uppercase letters)");
+        }
+
+        return normalized;
+    }
+
+    private User resolveUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 
     private Category resolveCategory(Long userId, Long categoryId) {

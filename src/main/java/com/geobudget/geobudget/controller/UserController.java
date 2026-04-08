@@ -7,13 +7,16 @@ import com.geobudget.geobudget.docs.auth.MeDoc;
 import com.geobudget.geobudget.docs.auth.RegisterDoc;
 import com.geobudget.geobudget.docs.auth.TokenRefreshDoc;
 import com.geobudget.geobudget.dto.UserDTO;
+import com.geobudget.geobudget.dto.UserPreferencesUpdateRequest;
 import com.geobudget.geobudget.dto.auth.LoginDTO;
 import com.geobudget.geobudget.dto.auth.RegisterDTO;
 import com.geobudget.geobudget.dto.auth.RegisterResponseDTO;
 import com.geobudget.geobudget.dto.jwt.JwtAuthenticationDTO;
+import com.geobudget.geobudget.security.CustomUserDetails;
 import com.geobudget.geobudget.service.AuthService;
 import com.geobudget.geobudget.service.ConfirmationTokenService;
 import com.geobudget.geobudget.service.UserJwtService;
+import com.geobudget.geobudget.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -24,8 +27,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,6 +49,7 @@ public class UserController {
     private final AuthService authService;
     private final HttpServletRequest request;
     private final UserJwtService userJwtService;
+    private final UserService userService;
     private final ConfirmationTokenService confirmationTokenService;
     private final ResourceLoader resourceLoader;
 
@@ -63,6 +70,15 @@ public class UserController {
     public ResponseEntity<UserDTO> getMe() {
         String authHeader = request.getHeader("Authorization");
         return ResponseEntity.ok(userJwtService.me(authHeader));
+    }
+
+    @PutMapping("/me/preferences")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserDTO> updatePreferences(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody UserPreferencesUpdateRequest request
+    ) {
+        return ResponseEntity.ok(userService.updatePreferences(userDetails.getUserId(), request));
     }
 
     @LogoutDoc

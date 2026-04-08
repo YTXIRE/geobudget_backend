@@ -16,8 +16,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 
     @Query("""
             SELECT
-                COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) AS income,
-                COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS expense
+                COALESCE(SUM(CASE WHEN t.type = 'income' THEN COALESCE(t.baseAmount, t.amount) ELSE 0 END), 0) AS income,
+                COALESCE(SUM(CASE WHEN t.type = 'expense' THEN COALESCE(t.baseAmount, t.amount) ELSE 0 END), 0) AS expense
             FROM Transaction t
             WHERE t.userId = :userId
               AND t.isDeleted = false
@@ -28,7 +28,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 
     @Query("""
             SELECT
-                COALESCE(SUM(t.amount), 0) AS totalAmount,
+                COALESCE(SUM(COALESCE(t.baseAmount, t.amount)), 0) AS totalAmount,
                 COUNT(t) AS count
             FROM Transaction t
             WHERE t.userId = :userId

@@ -6,9 +6,11 @@ import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
+import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
+import com.geobudget.geobudget.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +50,12 @@ class TransactionServiceTest {
     @Mock
     private GeoIpService geoIpService;
 
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private FxRateService fxRateService;
+
     @InjectMocks
     private TransactionService transactionService;
 
@@ -61,6 +70,10 @@ class TransactionServiceTest {
                 .description("Salary")
                 .occurredAt(LocalDateTime.now())
                 .build();
+
+        lenient().when(userRepository.findById(7L)).thenReturn(Optional.of(
+                User.builder().id(7L).baseCurrency("RUB").build()
+        ));
     }
 
     @Test
@@ -219,6 +232,36 @@ class TransactionServiceTest {
         assertEquals("Minsk", saved.getCity());
         assertEquals("Belarus", saved.getCountry());
         assertEquals("manual", saved.getLocationSource());
+    }
+
+    @Test
+    void create_whenCurrencyDiffersFromUserBase_calculatesBaseAmount() {
+        TransactionCreateRequest request = TransactionCreateRequest.builder()
+                .type("expense")
+                .amount(new BigDecimal("100.00"))
+                .categoryId(5L)
+                .occurredAt(LocalDateTime.now())
+                .originalCurrency("USD")
+                .build();
+
+        when(userRepository.findById(7L)).thenReturn(Optional.of(
+                User.builder().id(7L).baseCurrency("EUR").build()
+        ));
+        when(categoryRepository.findById(5L)).thenReturn(Optional.of(
+                Category.builder().id(5L).transactionType("expense").type("system").build()
+        ));
+        when(fxRateService.getRate("USD", "EUR")).thenReturn(new BigDecimal("0.920000"));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        transactionService.create(7L, request);
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+
+        Transaction saved = captor.getValue();
+        assertEquals("USD", saved.getOriginalCurrency());
+        assertEquals(new BigDecimal("0.920000"), saved.getRateToBase());
+        assertEquals(new BigDecimal("92.00"), saved.getBaseAmount());
     }
 
     @Test

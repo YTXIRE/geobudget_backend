@@ -50,6 +50,8 @@ public class AuthService {
                 .email(dto.getEmail())
                 .phone(dto.getPhone())
                 .city(dto.getCity())
+                .homeCity(dto.getCity())
+                .baseCurrency("RUB")
                 .country(countryRepository.findById(dto.getCountryId()).orElseThrow())
                 .build();
 

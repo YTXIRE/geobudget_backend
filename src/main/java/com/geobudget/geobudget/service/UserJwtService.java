@@ -19,6 +19,7 @@ import java.util.Optional;
 public class UserJwtService {
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final UserService userService;
 
     public UserDTO me(String token) {
         Long userId = jwtService.extractUserId(jwtService.getToken(token));
@@ -28,15 +29,7 @@ public class UserJwtService {
             throw new IllegalArgumentException("Пользователь не найден");
         }
 
-        return UserDTO.builder()
-                .username(user.get().getUsername())
-                .email(user.get().getEmail())
-                .city(user.get().getCity())
-                .country(user.get().getCountry().getTitle())
-                .phone(user.get().getPhone())
-                .role(Role.USER)
-                .id(user.get().getId())
-                .build();
+        return userService.toDto(user.get());
     }
 
     public JwtAuthenticationDTO refreshToken(String refreshToken) {
