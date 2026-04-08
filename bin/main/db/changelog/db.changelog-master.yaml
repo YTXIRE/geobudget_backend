@@ -31,3 +31,31 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V015__add_group_name_to_categories.sql
   - include:
       file: db/changelog/changeset/geobudget_V016__populate_category_groups.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V017__add_type_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V018__add_user_id_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V019__add_is_archived_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V020__create_groups_table.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V021__add_group_id_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V022__add_indexes.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V023__add_missing_system_groups.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V024__create_transactions_table.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V025__add_transaction_type_to_categories.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V026__sync_transactions_with_category_type.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V027__set_income_categories_group_and_icons.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V028__set_income_categories_colors.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V029__expand_transactions_stage1.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V030__allow_ip_location_source.sql
