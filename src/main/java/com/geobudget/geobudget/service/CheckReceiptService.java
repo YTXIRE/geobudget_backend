@@ -7,9 +7,11 @@ import com.geobudget.geobudget.dto.CategoryDto;
 import com.geobudget.geobudget.dto.checkReceipt.CheckReceipt;
 import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Receipt;
+import com.geobudget.geobudget.entity.ReceiptCategoryPreference;
 import com.geobudget.geobudget.entity.ReceiptItem;
 import com.geobudget.geobudget.exception.ReceiptExisting;
 import com.geobudget.geobudget.repository.CategoryRepository;
+import com.geobudget.geobudget.repository.ReceiptCategoryPreferenceRepository;
 import com.geobudget.geobudget.repository.ReceiptRepository;
 import com.geobudget.geobudget.validator.ReceiptValidator;
 import jakarta.transaction.Transactional;
@@ -42,6 +44,7 @@ public class CheckReceiptService {
     private final ReceiptsProperties receiptsProperties;
     private final CategoryService categoryService;
     private final CategoryRepository categoryRepository;
+    private final ReceiptCategoryPreferenceRepository receiptCategoryPreferenceRepository;
     private final ReceiptRepository receiptRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -53,7 +56,7 @@ public class CheckReceiptService {
             maxAttempts = 3
     )
     @Transactional
-    public CheckReceipt checkReceipt(String qrString) throws Exception {
+    public CheckReceipt checkReceipt(String qrString, Long userId) throws Exception {
         log.info("CheckReceiptService.checkReceipt: qrString={}", qrString);
         receiptValidator.validateQr(qrString.trim());
 
@@ -92,6 +95,7 @@ public class CheckReceiptService {
                     log.info("CheckReceiptService.checkReceipt: companyInfo={}", categoryDto);
 
                     dataJson.setCategory(categoryDto);
+                    dataJson.setMatchedUserCategory(matchUserCategory(userId, categoryDto));
 
                     String message = save(dataJson);
 
@@ -110,6 +114,76 @@ public class CheckReceiptService {
             }
         }
         return null;
+    }
+
+    private CategoryDto matchUserCategory(Long userId, CategoryDto receiptCategory) {
+        if (userId == null || receiptCategory == null || receiptCategory.getName() == null) {
+            return null;
+        }
+
+        String normalizedReceiptName = normalizeCategoryName(receiptCategory.getName());
+        if (normalizedReceiptName.isEmpty()) {
+            return null;
+        }
+
+        List<CategoryDto> categories = categoryService.getCategoriesForUser(userId, "expense", false);
+
+        for (CategoryDto category : categories) {
+            if (normalizeCategoryName(category.getName()).equals(normalizedReceiptName)) {
+                return category;
+            }
+        }
+
+        for (CategoryDto category : categories) {
+            String normalizedName = normalizeCategoryName(category.getName());
+            if (normalizedName.contains(normalizedReceiptName) || normalizedReceiptName.contains(normalizedName)) {
+                return category;
+            }
+        }
+
+        return null;
+    }
+
+    public CategoryDto resolveMatchedUserCategory(Long userId, String inn, CategoryDto receiptCategory) {
+        CategoryDto preferenceMatch = findPreferenceMatch(userId, inn);
+        if (preferenceMatch != null) {
+            return preferenceMatch;
+        }
+
+        return matchUserCategory(userId, receiptCategory);
+    }
+
+    public void saveCategoryPreference(Long userId, String inn, Long categoryId) {
+        if (userId == null || inn == null || inn.isBlank() || categoryId == null) {
+            throw new IllegalArgumentException("userId, inn and categoryId are required");
+        }
+
+        Category category = categoryRepository.findAccessibleById(categoryId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found or inaccessible"));
+
+        ReceiptCategoryPreference preference = receiptCategoryPreferenceRepository
+                .findByUserIdAndInn(userId, inn.trim())
+                .orElseGet(ReceiptCategoryPreference::new);
+
+        preference.setUserId(userId);
+        preference.setInn(inn.trim());
+        preference.setCategory(category);
+        receiptCategoryPreferenceRepository.save(preference);
+    }
+
+    private CategoryDto findPreferenceMatch(Long userId, String inn) {
+        if (userId == null || inn == null || inn.isBlank()) {
+            return null;
+        }
+
+        return receiptCategoryPreferenceRepository.findByUserIdAndInn(userId, inn.trim())
+                .map(ReceiptCategoryPreference::getCategory)
+                .map(categoryService::mapCategoryForExternalUse)
+                .orElse(null);
+    }
+
+    private String normalizeCategoryName(String value) {
+        return value == null ? "" : value.trim().toLowerCase().replaceAll("\\s+", " ");
     }
 
     private String save(CheckReceipt dto) {

@@ -27,6 +27,7 @@ public class CheckReceipt {
     private String inn;
     private String shopAddress;
     private CategoryDto category;
+    private CategoryDto matchedUserCategory;
     private long timestamp;
 
     @JsonProperty("data")

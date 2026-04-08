@@ -180,6 +180,10 @@ public class CategoryService {
         return getCategoryDto(category);
     }
 
+    public CategoryDto mapCategoryForExternalUse(Category category) {
+        return mapCategory(category);
+    }
+
     private CategoryDto getCategoryDto(Category category) {
         category = categoryRepository.save(category);
         return mapCategory(category);

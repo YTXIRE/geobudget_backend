@@ -63,3 +63,5 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V031__add_region_to_transactions.sql
   - include:
       file: db/changelog/changeset/geobudget_V032__add_user_currency_preferences.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V033__add_receipt_category_preferences.sql
