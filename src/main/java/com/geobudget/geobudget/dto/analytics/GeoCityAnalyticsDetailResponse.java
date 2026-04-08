@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record GeoCityAnalyticsDetailResponse(
-        String key,
-        String label,
+        String locationGroupKey,
+        String locationLabel,
         String city,
         String country,
         String region,

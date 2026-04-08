@@ -71,7 +71,8 @@ class GeoAnalyticsServiceTest {
         List<GeoCityAnalyticsResponse> cities = geoAnalyticsService.getCities(7L, null, null, null);
 
         assertEquals(1, cities.size());
-        assertEquals("Warsaw, Poland", cities.get(0).label());
+        assertEquals("Warsaw, Poland", cities.get(0).locationLabel());
+        assertEquals("geo::52.23::21.01", cities.get(0).locationGroupKey());
         assertEquals(new BigDecimal("1000.00"), cities.get(0).incomeTotal());
         assertEquals(new BigDecimal("150.00"), cities.get(0).expenseTotal());
         assertEquals(new BigDecimal("850.00"), cities.get(0).balance());
@@ -119,13 +120,13 @@ class GeoAnalyticsServiceTest {
 
         GeoCityAnalyticsDetailResponse detail = geoAnalyticsService.getCityDetail(
                 7L,
-                "place::poland::warsaw",
+                "geo::52.23::21.01",
                 null,
                 null,
                 null
         );
 
-        assertEquals("Warsaw, Poland", detail.label());
+        assertEquals("Warsaw, Poland", detail.locationLabel());
         assertEquals(2, detail.categories().size());
         assertEquals("Еда", detail.categories().get(0).categoryName());
         assertEquals(2, detail.transactions().size());

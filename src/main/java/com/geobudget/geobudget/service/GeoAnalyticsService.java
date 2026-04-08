@@ -40,7 +40,7 @@ public class GeoAnalyticsService {
                 .filter(CityAggregate::hasCoordinates)
                 .sorted(Comparator
                         .comparing(CityAggregate::getLatestOccurredAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(CityAggregate::getLabel))
+                        .thenComparing(CityAggregate::getLocationLabel, Comparator.nullsLast(String::compareTo)))
                 .map(this::toCityResponse)
                 .toList();
     }
@@ -56,16 +56,16 @@ public class GeoAnalyticsService {
 
         List<GeoCityCategoryAnalyticsResponse> categories = buildCategoryResponses(aggregate.getTransactions());
         List<GeoCityTransactionAnalyticsResponse> transactions = aggregate.getTransactions().stream()
-                .sorted(Comparator.comparing(
-                        (Transaction transaction) -> transaction.getOccurredAt(),
-                        Comparator.nullsLast(Comparator.reverseOrder())
-                ))
+                .sorted((left, right) -> Comparator
+                        .nullsLast(LocalDateTime::compareTo)
+                        .reversed()
+                        .compare(left.getOccurredAt(), right.getOccurredAt()))
                 .map(this::toTransactionResponse)
                 .toList();
 
         return new GeoCityAnalyticsDetailResponse(
-                aggregate.getKey(),
-                aggregate.getLabel(),
+                aggregate.getLocationGroupKey(),
+                aggregate.getLocationLabel(),
                 aggregate.getCity(),
                 aggregate.getCountry(),
                 aggregate.getRegion(),
@@ -130,8 +130,8 @@ public class GeoAnalyticsService {
 
     private GeoCityAnalyticsResponse toCityResponse(CityAggregate aggregate) {
         return new GeoCityAnalyticsResponse(
-                aggregate.getKey(),
-                aggregate.getLabel(),
+                aggregate.getLocationGroupKey(),
+                aggregate.getLocationLabel(),
                 aggregate.getCity(),
                 aggregate.getCountry(),
                 aggregate.getRegion(),
@@ -163,36 +163,32 @@ public class GeoAnalyticsService {
         String country = blankToNull(transaction.getCountry());
         String region = blankToNull(transaction.getRegion());
 
-        if (city != null || country != null || region != null) {
-            String normalizedCity = normalize(city);
-            String normalizedCountry = normalize(country);
-            String normalizedRegion = normalize(region);
-            String label = joinLabel(city, region, country);
+        if (transaction.getLatitude() != null && transaction.getLongitude() != null) {
+            BigDecimal latBucket = bucketCoordinate(transaction.getLatitude());
+            BigDecimal lonBucket = bucketCoordinate(transaction.getLongitude());
 
             return new CityKey(
-                    "place::" + nullSafe(normalizedCountry) + "::" + nullSafe(normalizedRegion) + "::" + nullSafe(normalizedCity),
-                    label,
+                    "geo::" + latBucket.toPlainString() + "::" + lonBucket.toPlainString(),
                     city,
                     country,
-                    region
+                    region,
+                    latBucket,
+                    lonBucket
             );
         }
 
-        if (transaction.getLatitude() == null || transaction.getLongitude() == null) {
-            return null;
+        if (city != null || country != null || region != null) {
+            return new CityKey(
+                    "place::" + nullSafe(canonicalGeoToken(country)) + "::" + nullSafe(canonicalGeoToken(region)) + "::" + nullSafe(canonicalGeoToken(city)),
+                    city,
+                    country,
+                    region,
+                    null,
+                    null
+            );
         }
 
-        BigDecimal latBucket = bucketCoordinate(transaction.getLatitude());
-        BigDecimal lonBucket = bucketCoordinate(transaction.getLongitude());
-        String label = "Координаты " + latBucket.toPlainString() + ", " + lonBucket.toPlainString();
-
-        return new CityKey(
-                "geo::" + latBucket.toPlainString() + "::" + lonBucket.toPlainString(),
-                label,
-                null,
-                null,
-                null
-        );
+        return null;
     }
 
     private Specification<Transaction> buildSpec(Long userId, String type, LocalDateTime from, LocalDateTime to) {
@@ -248,6 +244,21 @@ public class GeoAnalyticsService {
         return String.join(", ", parts);
     }
 
+    private String canonicalGeoToken(String value) {
+        String normalized = normalize(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        return switch (normalized) {
+            case "warsaw", "warszawa", "варшава" -> "warsaw";
+            case "moscow", "moskva", "москва" -> "moscow";
+            case "minsk", "минск" -> "minsk";
+            case "mazowieckie", "masovian voivodeship", "masovian", "мазовецкое воеводство" -> "mazowieckie";
+            default -> normalized;
+        };
+    }
+
     private String blankToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -266,16 +277,24 @@ public class GeoAnalyticsService {
         return value == null ? "" : value;
     }
 
-    private record CityKey(String key, String label, String city, String country, String region) {
+    private record CityKey(
+            String key,
+            String city,
+            String country,
+            String region,
+            BigDecimal latitudeBucket,
+            BigDecimal longitudeBucket
+    ) {
     }
 
     private final class CityAggregate {
-        private final String key;
-        private final String label;
-        private final String city;
-        private final String country;
-        private final String region;
+        private final String locationGroupKey;
         private final List<Transaction> transactions = new ArrayList<>();
+        private final Map<String, Integer> cityCounts = new LinkedHashMap<>();
+        private final Map<String, Integer> regionCounts = new LinkedHashMap<>();
+        private final Map<String, Integer> countryCounts = new LinkedHashMap<>();
+        private final BigDecimal latitudeBucket;
+        private final BigDecimal longitudeBucket;
         private BigDecimal incomeTotal = BigDecimal.ZERO;
         private BigDecimal expenseTotal = BigDecimal.ZERO;
         private BigDecimal latitudeSum = BigDecimal.ZERO;
@@ -285,16 +304,20 @@ public class GeoAnalyticsService {
         private LocalDateTime latestOccurredAt;
 
         private CityAggregate(CityKey key) {
-            this.key = key.key();
-            this.label = key.label();
-            this.city = key.city();
-            this.country = key.country();
-            this.region = key.region();
+            this.locationGroupKey = key.key();
+            this.latitudeBucket = key.latitudeBucket();
+            this.longitudeBucket = key.longitudeBucket();
+            incrementCount(cityCounts, key.city());
+            incrementCount(regionCounts, key.region());
+            incrementCount(countryCounts, key.country());
         }
 
         private void add(Transaction transaction) {
             transactions.add(transaction);
             transactionCount += 1;
+            incrementCount(cityCounts, blankToNull(transaction.getCity()));
+            incrementCount(regionCounts, blankToNull(transaction.getRegion()));
+            incrementCount(countryCounts, blankToNull(transaction.getCountry()));
 
             BigDecimal value = transactionValue(transaction);
             if ("income".equals(transaction.getType())) {
@@ -319,24 +342,36 @@ public class GeoAnalyticsService {
             return coordinateCount > 0;
         }
 
-        private String getKey() {
-            return key;
+        private String getLocationGroupKey() {
+            return locationGroupKey;
         }
 
-        private String getLabel() {
-            return label;
+        private String getLocationLabel() {
+            String city = getCity();
+            String region = getRegion();
+            String country = getCountry();
+
+            if (city != null || region != null || country != null) {
+                return joinLabel(city, region, country);
+            }
+
+            if (latitudeBucket != null && longitudeBucket != null) {
+                return "Координаты " + latitudeBucket.toPlainString() + ", " + longitudeBucket.toPlainString();
+            }
+
+            return "Без локации";
         }
 
         private String getCity() {
-            return city;
+            return mostFrequentValue(cityCounts);
         }
 
         private String getCountry() {
-            return country;
+            return mostFrequentValue(countryCounts);
         }
 
         private String getRegion() {
-            return region;
+            return mostFrequentValue(regionCounts);
         }
 
         private List<Transaction> getTransactions() {
@@ -376,6 +411,21 @@ public class GeoAnalyticsService {
         private LocalDateTime getLatestOccurredAt() {
             return latestOccurredAt;
         }
+    }
+
+    private void incrementCount(Map<String, Integer> counts, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        counts.merge(value.trim(), 1, Integer::sum);
+    }
+
+    private String mostFrequentValue(Map<String, Integer> counts) {
+        return counts.entrySet().stream()
+                .max(Map.Entry.<String, Integer>comparingByValue()
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 
     private final class CategoryAggregate {

@@ -3,8 +3,8 @@ package com.geobudget.geobudget.dto.analytics;
 import java.math.BigDecimal;
 
 public record GeoCityAnalyticsResponse(
-        String key,
-        String label,
+        String locationGroupKey,
+        String locationLabel,
         String city,
         String country,
         String region,
