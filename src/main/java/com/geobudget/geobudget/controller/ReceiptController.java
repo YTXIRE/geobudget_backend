@@ -34,9 +34,6 @@ public class ReceiptController {
         String qr = request.get("qr");
         Long userId = userDetails != null ? userDetails.getUserId() : null;
         CheckReceipt result = checkReceiptService.checkReceipt(qr, userId);
-        result.setMatchedUserCategory(
-                checkReceiptService.resolveMatchedUserCategory(userId, result.getInn(), result.getCategory())
-        );
         return ResponseEntity.ok(result);
     }
 

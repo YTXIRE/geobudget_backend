@@ -95,7 +95,7 @@ public class CheckReceiptService {
                     log.info("CheckReceiptService.checkReceipt: companyInfo={}", categoryDto);
 
                     dataJson.setCategory(categoryDto);
-                    dataJson.setMatchedUserCategory(matchUserCategory(userId, categoryDto));
+                    applyMatchResult(dataJson, resolveCategoryMatch(userId, dataJson.getInn(), categoryDto));
 
                     String message = save(dataJson);
 
@@ -116,7 +116,21 @@ public class CheckReceiptService {
         return null;
     }
 
-    private CategoryDto matchUserCategory(Long userId, CategoryDto receiptCategory) {
+    private MatchResult resolveCategoryMatch(Long userId, String inn, CategoryDto receiptCategory) {
+        MatchResult preferenceMatch = findPreferenceMatch(userId, inn);
+        if (preferenceMatch != null) {
+            return preferenceMatch;
+        }
+
+        MatchResult directMatch = matchUserCategory(userId, receiptCategory);
+        if (directMatch != null) {
+            return directMatch;
+        }
+
+        return new MatchResult(null, "receiptCategory", "low");
+    }
+
+    private MatchResult matchUserCategory(Long userId, CategoryDto receiptCategory) {
         if (userId == null || receiptCategory == null || receiptCategory.getName() == null) {
             return null;
         }
@@ -130,14 +144,14 @@ public class CheckReceiptService {
 
         for (CategoryDto category : categories) {
             if (normalizeCategoryName(category.getName()).equals(normalizedReceiptName)) {
-                return category;
+                return new MatchResult(category, "matchedUserCategory", "high");
             }
         }
 
         for (CategoryDto category : categories) {
             String normalizedName = normalizeCategoryName(category.getName());
             if (normalizedName.contains(normalizedReceiptName) || normalizedReceiptName.contains(normalizedName)) {
-                return category;
+                return new MatchResult(category, "matchedUserCategory", "medium");
             }
         }
 
@@ -145,12 +159,8 @@ public class CheckReceiptService {
     }
 
     public CategoryDto resolveMatchedUserCategory(Long userId, String inn, CategoryDto receiptCategory) {
-        CategoryDto preferenceMatch = findPreferenceMatch(userId, inn);
-        if (preferenceMatch != null) {
-            return preferenceMatch;
-        }
-
-        return matchUserCategory(userId, receiptCategory);
+        MatchResult result = resolveCategoryMatch(userId, inn, receiptCategory);
+        return result != null ? result.category() : null;
     }
 
     public void saveCategoryPreference(Long userId, String inn, Long categoryId) {
@@ -171,7 +181,7 @@ public class CheckReceiptService {
         receiptCategoryPreferenceRepository.save(preference);
     }
 
-    private CategoryDto findPreferenceMatch(Long userId, String inn) {
+    private MatchResult findPreferenceMatch(Long userId, String inn) {
         if (userId == null || inn == null || inn.isBlank()) {
             return null;
         }
@@ -179,7 +189,21 @@ public class CheckReceiptService {
         return receiptCategoryPreferenceRepository.findByUserIdAndInn(userId, inn.trim())
                 .map(ReceiptCategoryPreference::getCategory)
                 .map(categoryService::mapCategoryForExternalUse)
+                .map(category -> new MatchResult(category, "matchedUserCategory", "high"))
                 .orElse(null);
+    }
+
+    private void applyMatchResult(CheckReceipt receipt, MatchResult result) {
+        if (result == null) {
+            receipt.setMatchedUserCategory(null);
+            receipt.setSelectedCategorySource("receiptCategory");
+            receipt.setMatchConfidence("low");
+            return;
+        }
+
+        receipt.setMatchedUserCategory(result.category());
+        receipt.setSelectedCategorySource(result.source());
+        receipt.setMatchConfidence(result.confidence());
     }
 
     private String normalizeCategoryName(String value) {
@@ -243,5 +267,8 @@ public class CheckReceiptService {
         receiptRepository.save(receipt);
 
         return null;
+    }
+
+    private record MatchResult(CategoryDto category, String source, String confidence) {
     }
 }

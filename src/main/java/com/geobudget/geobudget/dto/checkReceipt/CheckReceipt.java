@@ -28,6 +28,8 @@ public class CheckReceipt {
     private String shopAddress;
     private CategoryDto category;
     private CategoryDto matchedUserCategory;
+    private String selectedCategorySource;
+    private String matchConfidence;
     private long timestamp;
 
     @JsonProperty("data")
