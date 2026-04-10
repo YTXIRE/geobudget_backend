@@ -87,9 +87,10 @@ public class TransactionController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String country,
+            @RequestParam(required = false) Long partnerId,
             @PageableDefault(size = 20, sort = "occurredAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.ok(transactionService.getAll(userDetails.getUserId(), type, from, to, categoryId, city, country, pageable));
+        return ResponseEntity.ok(transactionService.getAll(userDetails.getUserId(), type, from, to, categoryId, city, country, partnerId, pageable));
     }
 
     @GetMapping("/{id}")
@@ -146,5 +147,17 @@ public class TransactionController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         return ResponseEntity.ok(transactionService.getExpenseStats(userDetails.getUserId()));
+    }
+
+    @GetMapping("/partner/{partnerId}")
+    public ResponseEntity<Page<TransactionResponse>> getPartnerTransactions(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long partnerId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @PageableDefault(size = 20, sort = "occurredAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(transactionService.getPartnerTransactions(
+                userDetails.getUserId(), partnerId, from, to, pageable));
     }
 }

@@ -7,12 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
 
     Optional<Transaction> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
+
+    List<Transaction> findByUserIdAndIsDeletedFalse(Long userId);
 
     @Query("""
             SELECT
@@ -36,4 +39,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
               AND (:type IS NULL OR t.type = :type)
             """)
     TransactionStatsProjection getStats(Long userId, String type);
+
+    long countByCategoryIdIn(List<Long> categoryIds);
 }

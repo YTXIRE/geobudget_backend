@@ -16,21 +16,27 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "groups")
+@Table(name = "partners", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"user_id", "partner_id"})
+})
 @EntityListeners(AuditingEntityListener.class)
-public class Group {
+public class Partner {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String name;
-
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "is_system")
-    private Boolean isSystem;
+    @Column(name = "partner_id", nullable = false)
+    private Long partnerId;
+
+    @Column(name = "status", nullable = false, length = 20)
+    private String status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id", insertable = false, updatable = false)
+    private User partner;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
@@ -40,6 +46,7 @@ public class Group {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(length = 100)
-    private String icon;
+    public static final String STATUS_PENDING = "pending";
+    public static final String STATUS_ACCEPTED = "accepted";
+    public static final String STATUS_REJECTED = "rejected";
 }

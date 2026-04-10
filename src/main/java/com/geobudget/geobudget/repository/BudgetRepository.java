@@ -15,4 +15,10 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
 
     @EntityGraph(attributePaths = {"category"})
     Optional<Budget> findByIdAndUserId(Long id, Long userId);
+
+    @EntityGraph(attributePaths = {"category"})
+    List<Budget> findByUserIdOrPartnerIdOrderByCreatedAtDesc(Long userId, Long partnerId);
+
+    @EntityGraph(attributePaths = {"category"})
+    Optional<Budget> findByIdAndUserIdOrIdAndPartnerId(Long id1, Long userId, Long id2, Long partnerId);
 }

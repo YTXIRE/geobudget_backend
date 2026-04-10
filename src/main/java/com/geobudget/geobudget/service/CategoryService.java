@@ -243,6 +243,7 @@ public class CategoryService {
         return CategoryGroupDto.builder()
                 .id(group.getId())
                 .name(group.getName())
+                .icon(group.getIcon())
                 .build();
     }
 

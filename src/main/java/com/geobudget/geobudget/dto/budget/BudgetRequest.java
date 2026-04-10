@@ -51,4 +51,6 @@ public class BudgetRequest {
     private BigDecimal warningThreshold;
 
     private Boolean isActive;
+
+    private Long partnerId;
 }

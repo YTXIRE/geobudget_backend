@@ -12,6 +12,7 @@ import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.CategoryRepository;
+import com.geobudget.geobudget.repository.PartnerRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionStatsProjection;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
@@ -42,6 +43,7 @@ public class TransactionService {
     private final GeoIpService geoIpService;
     private final UserRepository userRepository;
     private final FxRateService fxRateService;
+    private final PartnerRepository partnerRepository;
 
     @Transactional
     public TransactionResponse create(Long userId, TransactionCreateRequest request) {
@@ -78,6 +80,7 @@ public class TransactionService {
             Long categoryId,
             String city,
             String country,
+            Long partnerId,
             Pageable pageable
     ) {
         validatePeriod(from, to);
@@ -90,7 +93,7 @@ public class TransactionService {
             resolveCategory(userId, categoryId);
         }
 
-        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId, city, country);
+        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId, city, country, partnerId);
 
         return transactionRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
@@ -101,6 +104,24 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
         return mapToResponse(transaction);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TransactionResponse> getPartnerTransactions(
+            Long userId,
+            Long partnerId,
+            LocalDateTime from,
+            LocalDateTime to,
+            Pageable pageable
+    ) {
+        if (!partnerRepository.existsAcceptedPartnership(userId, partnerId)) {
+            throw new IllegalArgumentException("User is not a partner with this user");
+        }
+
+        Specification<Transaction> spec = buildSpec(partnerId, null, from, to, null, null, null, null);
+
+        return transactionRepository.findAll(spec, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional
@@ -370,6 +391,7 @@ public class TransactionService {
     private TransactionResponse mapToResponse(Transaction transaction) {
         return TransactionResponse.builder()
                 .id(transaction.getId())
+                .userId(transaction.getUserId())
                 .type(transaction.getType())
                 .amount(transaction.getAmount())
                 .categoryId(transaction.getCategory() != null ? transaction.getCategory().getId() : null)
@@ -409,11 +431,21 @@ public class TransactionService {
             LocalDateTime to,
             Long categoryId,
             String city,
-            String country
+            String country,
+            Long partnerId
     ) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("userId"), userId));
+            
+            if (partnerId != null) {
+                predicates.add(cb.or(
+                        cb.equal(root.get("userId"), userId),
+                        cb.equal(root.get("userId"), partnerId)
+                ));
+            } else {
+                predicates.add(cb.equal(root.get("userId"), userId));
+            }
+            
             predicates.add(cb.isFalse(root.get("isDeleted")));
 
             if (type != null) {

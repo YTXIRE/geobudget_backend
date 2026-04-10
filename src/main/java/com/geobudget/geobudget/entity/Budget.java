@@ -65,6 +65,9 @@ public class Budget {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
+    @Column(name = "partner_id")
+    private Long partnerId;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

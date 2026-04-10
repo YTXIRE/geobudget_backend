@@ -7,10 +7,12 @@ import com.geobudget.geobudget.dto.budget.BudgetRequest;
 import com.geobudget.geobudget.dto.budget.BudgetResponse;
 import com.geobudget.geobudget.entity.Budget;
 import com.geobudget.geobudget.entity.Category;
+import com.geobudget.geobudget.entity.Partner;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.BudgetRepository;
 import com.geobudget.geobudget.repository.CategoryRepository;
+import com.geobudget.geobudget.repository.PartnerRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -37,10 +39,20 @@ public class BudgetService {
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
+    private final PartnerRepository partnerRepository;
 
     @Transactional(readOnly = true)
     public List<BudgetResponse> getBudgets(Long userId) {
-        return budgetRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        List<Long> partnerIds = getAcceptedPartnerIds(userId);
+        
+        List<Budget> budgets = new ArrayList<>();
+        budgets.addAll(budgetRepository.findByUserIdOrderByCreatedAtDesc(userId));
+        
+        for (Long partnerId : partnerIds) {
+            budgets.addAll(budgetRepository.findByUserIdOrderByCreatedAtDesc(partnerId));
+        }
+        
+        return budgets.stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -75,7 +87,16 @@ public class BudgetService {
 
     @Transactional(readOnly = true)
     public List<BudgetProgressResponse> getBudgetProgress(Long userId) {
-        return budgetRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        List<Long> partnerIds = getAcceptedPartnerIds(userId);
+        
+        List<Budget> allBudgets = new ArrayList<>();
+        allBudgets.addAll(budgetRepository.findByUserIdOrderByCreatedAtDesc(userId));
+        
+        for (Long partnerId : partnerIds) {
+            allBudgets.addAll(budgetRepository.findByUserIdOrderByCreatedAtDesc(partnerId));
+        }
+        
+        return allBudgets.stream()
                 .map(budget -> computeProgress(userId, budget))
                 .toList();
     }
@@ -100,6 +121,15 @@ public class BudgetService {
         budget.setEndsAt(request.getEndsAt());
         budget.setWarningThreshold(request.getWarningThreshold().setScale(2, RoundingMode.HALF_UP));
         budget.setIsActive(request.getIsActive() == null ? Boolean.TRUE : request.getIsActive());
+
+        if (request.getPartnerId() != null) {
+            if (!partnerRepository.existsAcceptedPartnership(userId, request.getPartnerId())) {
+                throw new IllegalArgumentException("Cannot create shared budget with non-partner user");
+            }
+            budget.setPartnerId(request.getPartnerId());
+        } else {
+            budget.setPartnerId(null);
+        }
 
         if ("category".equals(request.getScopeType())) {
             Category category = categoryRepository.findAccessibleById(request.getCategoryId(), userId)
@@ -253,7 +283,16 @@ public class BudgetService {
     private Specification<Transaction> buildBudgetSpec(Long userId, Budget budget) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("userId"), userId));
+            
+            if (budget.getPartnerId() != null) {
+                predicates.add(cb.or(
+                        cb.equal(root.get("userId"), userId),
+                        cb.equal(root.get("userId"), budget.getPartnerId())
+                ));
+            } else {
+                predicates.add(cb.equal(root.get("userId"), userId));
+            }
+            
             predicates.add(cb.equal(root.get("type"), "expense"));
             predicates.add(cb.isFalse(root.get("isDeleted")));
             predicates.add(cb.greaterThanOrEqualTo(root.get("occurredAt"), budget.getStartsAt().atStartOfDay()));
@@ -295,13 +334,34 @@ public class BudgetService {
                 .endsAt(budget.getEndsAt())
                 .warningThreshold(budget.getWarningThreshold())
                 .isActive(budget.getIsActive())
+                .partnerId(budget.getPartnerId())
                 .createdAt(budget.getCreatedAt())
                 .updatedAt(budget.getUpdatedAt())
                 .build();
     }
 
     private Budget resolveBudget(Long userId, Long id) {
+        List<Long> partnerIds = getAcceptedPartnerIds(userId);
+        
+        if (partnerIds.isEmpty()) {
+            return budgetRepository.findByIdAndUserId(id, userId)
+                    .orElseThrow(() -> new EntityNotFoundException("Budget not found"));
+        }
+        
+        for (Long partnerId : partnerIds) {
+            var budget = budgetRepository.findByIdAndUserId(id, partnerId);
+            if (budget.isPresent() && (budget.get().getPartnerId() == null || budget.get().getPartnerId().equals(userId))) {
+                return budget.get();
+            }
+        }
+        
         return budgetRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Budget not found"));
+    }
+
+    private List<Long> getAcceptedPartnerIds(Long userId) {
+        return partnerRepository.findAllAcceptedForUser(userId).stream()
+                .map(p -> p.getUserId().equals(userId) ? p.getPartnerId() : p.getUserId())
+                .toList();
     }
 }

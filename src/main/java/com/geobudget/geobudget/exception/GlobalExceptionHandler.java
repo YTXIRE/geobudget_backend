@@ -73,6 +73,15 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), List.of(ex.getMessage()));
     }
 
+    @ExceptionHandler(GroupHasDependenciesException.class)
+    public ResponseEntity<ErrorResponse> handleGroupHasDependencies(GroupHasDependenciesException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), List.of(
+                "Категорий: " + ex.getCategoryCount(),
+                "Операций: " + ex.getTransactionCount(),
+                "Категории: " + ex.getCategoryNames()
+        ));
+    }
+
     @ExceptionHandler({JsonProcessingException.class, NetworkException.class})
     public ResponseEntity<ErrorResponse> handleExternalErrors(Exception ex) {
         return build(HttpStatus.BAD_GATEWAY, ex.getMessage(), List.of(ex.getMessage()));

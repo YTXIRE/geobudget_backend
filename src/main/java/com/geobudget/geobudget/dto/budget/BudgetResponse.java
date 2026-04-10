@@ -28,6 +28,7 @@ public class BudgetResponse {
     private LocalDate endsAt;
     private BigDecimal warningThreshold;
     private Boolean isActive;
+    private Long partnerId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

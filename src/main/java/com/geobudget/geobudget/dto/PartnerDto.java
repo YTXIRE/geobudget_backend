@@ -11,12 +11,14 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class GroupDto {
+public class PartnerDto {
     private Long id;
-    private String name;
     private Long userId;
-    private Boolean isSystem;
+    private Long partnerId;
+    private String partnerUsername;
+    private String partnerEmail;
+    private String partnerPhone;
+    private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String icon;
 }

@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TransactionResponse {
     private Long id;
+    private Long userId;
     private String type;
     private BigDecimal amount;
     private Long categoryId;
