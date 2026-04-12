@@ -28,7 +28,7 @@ public class BudgetRequest {
     @Pattern(regexp = "[A-Z]{3}")
     private String baseCurrency;
 
-    @Pattern(regexp = "category|region|city")
+    @Pattern(regexp = "category|region|city|country", message = "scopeType must be one of: category, region, city, country")
     private String scopeType;
 
     private Long categoryId;
@@ -38,6 +38,9 @@ public class BudgetRequest {
 
     @Size(max = 120)
     private String city;
+
+    @Size(max = 120)
+    private String country;
 
     @NotNull
     private LocalDate startsAt;

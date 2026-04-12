@@ -29,7 +29,7 @@ import jakarta.validation.constraints.Pattern;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping({"/api", "/api/v1"})
+@RequestMapping("/api/v1")
 @Tag(name = "Category", description = "Работа с категориями")
 @Validated
 @PreAuthorize("hasRole('USER')")

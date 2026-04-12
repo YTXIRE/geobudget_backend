@@ -53,6 +53,9 @@ public class Budget {
     @Column(length = 120)
     private String city;
 
+    @Column(length = 120)
+    private String country;
+
     @Column(name = "starts_at", nullable = false)
     private LocalDate startsAt;
 

@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/analytics/geo")
+@RequestMapping("/api/v1/analytics/geo")
 @PreAuthorize("isAuthenticated()")
 public class GeoAnalyticsController {
     private final GeoAnalyticsService geoAnalyticsService;

@@ -137,14 +137,22 @@ public class BudgetService {
             budget.setCategory(category);
             budget.setRegion(null);
             budget.setCity(null);
+            budget.setCountry(null);
         } else if ("region".equals(request.getScopeType())) {
             budget.setCategory(null);
             budget.setRegion(request.getRegion().trim());
             budget.setCity(null);
+            budget.setCountry(null);
         } else if ("city".equals(request.getScopeType())) {
             budget.setCategory(null);
             budget.setRegion(request.getRegion() == null ? null : request.getRegion().trim());
             budget.setCity(request.getCity().trim());
+            budget.setCountry(null);
+        } else if ("country".equals(request.getScopeType())) {
+            budget.setCategory(null);
+            budget.setRegion(null);
+            budget.setCity(null);
+            budget.setCountry(request.getCountry() == null ? null : request.getCountry().trim());
         }
     }
 
@@ -160,6 +168,9 @@ public class BudgetService {
         }
         if ("city".equals(request.getScopeType()) && (request.getCity() == null || request.getCity().isBlank())) {
             throw new IllegalArgumentException("city is required for city budget");
+        }
+        if ("country".equals(request.getScopeType()) && (request.getCountry() == null || request.getCountry().isBlank())) {
+            throw new IllegalArgumentException("country is required for country budget");
         }
     }
 
@@ -302,6 +313,7 @@ public class BudgetService {
                 case "category" -> predicates.add(cb.equal(root.get("category").get("id"), budget.getCategory().getId()));
                 case "region" -> predicates.add(cb.equal(cb.lower(root.get("region")), budget.getRegion().toLowerCase()));
                 case "city" -> predicates.add(cb.equal(cb.lower(root.get("city")), budget.getCity().toLowerCase()));
+                case "country" -> predicates.add(cb.equal(cb.lower(root.get("country")), budget.getCountry().toLowerCase()));
                 default -> throw new IllegalArgumentException("Unsupported scopeType: " + budget.getScopeType());
             }
 
@@ -314,6 +326,7 @@ public class BudgetService {
             case "category" -> budget.getCategory() != null ? budget.getCategory().getName() : "Без категории";
             case "region" -> budget.getRegion();
             case "city" -> budget.getCity();
+            case "country" -> budget.getCountry();
             default -> budget.getName();
         };
     }
@@ -330,6 +343,7 @@ public class BudgetService {
                 .categoryName(budget.getCategory() != null ? budget.getCategory().getName() : null)
                 .region(budget.getRegion())
                 .city(budget.getCity())
+                .country(budget.getCountry())
                 .startsAt(budget.getStartsAt())
                 .endsAt(budget.getEndsAt())
                 .warningThreshold(budget.getWarningThreshold())

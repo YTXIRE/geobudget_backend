@@ -77,3 +77,9 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V038__add_icon_to_groups.sql
   - include:
       file: db/changelog/changeset/geobudget_V039__add_system_group_icons.sql
+  - changeSet:
+      id: V040
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V040__add_country_to_budgets.sql

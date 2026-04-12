@@ -24,6 +24,7 @@ public class BudgetResponse {
     private String categoryName;
     private String region;
     private String city;
+    private String country;
     private LocalDate startsAt;
     private LocalDate endsAt;
     private BigDecimal warningThreshold;
