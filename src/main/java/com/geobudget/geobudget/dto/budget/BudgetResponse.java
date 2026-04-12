@@ -22,6 +22,8 @@ public class BudgetResponse {
     private String scopeType;
     private Long categoryId;
     private String categoryName;
+    private Long groupId;
+    private String groupName;
     private String region;
     private String city;
     private String country;

@@ -83,3 +83,9 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: db/changelog/changeset/geobudget_V040__add_country_to_budgets.sql
+  - changeSet:
+      id: V041
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V041__add_group_id_to_budgets.sql

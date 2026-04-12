@@ -399,6 +399,7 @@ public class TransactionService {
                         .id(transaction.getCategory().getId())
                         .name(transaction.getCategory().getName())
                         .transactionType(transaction.getCategory().getTransactionType())
+                        .groupName(transaction.getCategory().getGroup() != null ? transaction.getCategory().getGroup().getName() : null)
                         .build())
                 .description(transaction.getDescription())
                 .occurredAt(transaction.getOccurredAt())

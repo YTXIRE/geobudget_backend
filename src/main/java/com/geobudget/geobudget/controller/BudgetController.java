@@ -64,4 +64,14 @@ public class BudgetController {
     public ResponseEntity<BudgetProgressResponse> getProgressById(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long id) {
         return ResponseEntity.ok(budgetService.getBudgetProgress(userDetails.getUserId(), id));
     }
+
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<BudgetResponse> archiveBudget(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long id) {
+        return ResponseEntity.ok(budgetService.toggleArchive(userDetails.getUserId(), id));
+    }
+
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<BudgetResponse> duplicateBudget(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(budgetService.duplicateBudget(userDetails.getUserId(), id));
+    }
 }

@@ -13,4 +13,5 @@ public class TransactionCategoryDto {
     private Long id;
     private String name;
     private String transactionType;
+    private String groupName;
 }

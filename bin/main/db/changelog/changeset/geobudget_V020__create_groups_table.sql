@@ -22,5 +22,4 @@ INSERT INTO groups (name, user_id, is_system) VALUES
 ('Дом', NULL, TRUE),
 ('Путешествия', NULL, TRUE),
 ('Образование', NULL, TRUE),
-('Образование', NULL, TRUE),
 ('Другое', NULL, TRUE);

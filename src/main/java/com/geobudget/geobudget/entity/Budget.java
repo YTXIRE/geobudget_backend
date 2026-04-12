@@ -47,6 +47,10 @@ public class Budget {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private Category group;
+
     @Column(length = 160)
     private String region;
 

@@ -85,6 +85,39 @@ public class BudgetService {
         budgetRepository.delete(budget);
     }
 
+    @Transactional
+    public BudgetResponse toggleArchive(Long userId, Long id) {
+        Budget budget = resolveBudget(userId, id);
+        budget.setIsActive(!Boolean.TRUE.equals(budget.getIsActive()));
+        return toResponse(budgetRepository.save(budget));
+    }
+
+    @Transactional
+    public BudgetResponse duplicateBudget(Long userId, Long id) {
+        Budget original = resolveBudget(userId, id);
+        User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        Budget duplicate = new Budget();
+        duplicate.setUserId(userId);
+        duplicate.setName(original.getName() + " (копия)");
+        duplicate.setPeriodType(original.getPeriodType());
+        duplicate.setAmountLimit(original.getAmountLimit());
+        duplicate.setBaseCurrency(original.getBaseCurrency());
+        duplicate.setScopeType(original.getScopeType());
+        duplicate.setCategory(original.getCategory());
+        duplicate.setGroup(original.getGroup());
+        duplicate.setRegion(original.getRegion());
+        duplicate.setCity(original.getCity());
+        duplicate.setCountry(original.getCountry());
+        duplicate.setStartsAt(original.getStartsAt());
+        duplicate.setEndsAt(original.getEndsAt());
+        duplicate.setWarningThreshold(original.getWarningThreshold());
+        duplicate.setIsActive(true);
+        duplicate.setPartnerId(null);
+
+        return toResponse(budgetRepository.save(duplicate));
+    }
+
     @Transactional(readOnly = true)
     public List<BudgetProgressResponse> getBudgetProgress(Long userId) {
         List<Long> partnerIds = getAcceptedPartnerIds(userId);
@@ -135,16 +168,27 @@ public class BudgetService {
             Category category = categoryRepository.findAccessibleById(request.getCategoryId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Category not found or inaccessible"));
             budget.setCategory(category);
+            budget.setGroup(null);
+            budget.setRegion(null);
+            budget.setCity(null);
+            budget.setCountry(null);
+        } else if ("group".equals(request.getScopeType())) {
+            Category group = categoryRepository.findAccessibleById(request.getGroupId(), userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Group not found or inaccessible"));
+            budget.setCategory(null);
+            budget.setGroup(group);
             budget.setRegion(null);
             budget.setCity(null);
             budget.setCountry(null);
         } else if ("region".equals(request.getScopeType())) {
             budget.setCategory(null);
+            budget.setGroup(null);
             budget.setRegion(request.getRegion().trim());
             budget.setCity(null);
             budget.setCountry(null);
         } else if ("city".equals(request.getScopeType())) {
             budget.setCategory(null);
+            budget.setGroup(null);
             budget.setRegion(request.getRegion() == null ? null : request.getRegion().trim());
             budget.setCity(request.getCity().trim());
             budget.setCountry(null);
@@ -162,6 +206,9 @@ public class BudgetService {
         }
         if ("category".equals(request.getScopeType()) && request.getCategoryId() == null) {
             throw new IllegalArgumentException("categoryId is required for category budget");
+        }
+        if ("group".equals(request.getScopeType()) && request.getGroupId() == null) {
+            throw new IllegalArgumentException("groupId is required for group budget");
         }
         if ("region".equals(request.getScopeType()) && (request.getRegion() == null || request.getRegion().isBlank())) {
             throw new IllegalArgumentException("region is required for region budget");
@@ -311,6 +358,7 @@ public class BudgetService {
 
             switch (budget.getScopeType()) {
                 case "category" -> predicates.add(cb.equal(root.get("category").get("id"), budget.getCategory().getId()));
+                case "group" -> predicates.add(cb.equal(root.get("category").get("group").get("id"), budget.getGroup().getId()));
                 case "region" -> predicates.add(cb.equal(cb.lower(root.get("region")), budget.getRegion().toLowerCase()));
                 case "city" -> predicates.add(cb.equal(cb.lower(root.get("city")), budget.getCity().toLowerCase()));
                 case "country" -> predicates.add(cb.equal(cb.lower(root.get("country")), budget.getCountry().toLowerCase()));
@@ -324,6 +372,7 @@ public class BudgetService {
     private String scopeLabel(Budget budget) {
         return switch (budget.getScopeType()) {
             case "category" -> budget.getCategory() != null ? budget.getCategory().getName() : "Без категории";
+            case "group" -> budget.getGroup() != null ? budget.getGroup().getName() : "Без группы";
             case "region" -> budget.getRegion();
             case "city" -> budget.getCity();
             case "country" -> budget.getCountry();
@@ -341,6 +390,8 @@ public class BudgetService {
                 .scopeType(budget.getScopeType())
                 .categoryId(budget.getCategory() != null ? budget.getCategory().getId() : null)
                 .categoryName(budget.getCategory() != null ? budget.getCategory().getName() : null)
+                .groupId(budget.getGroup() != null ? budget.getGroup().getId() : null)
+                .groupName(budget.getGroup() != null ? budget.getGroup().getName() : null)
                 .region(budget.getRegion())
                 .city(budget.getCity())
                 .country(budget.getCountry())
