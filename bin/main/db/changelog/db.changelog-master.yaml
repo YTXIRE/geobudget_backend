@@ -69,3 +69,17 @@ databaseChangeLog:
       file: db/changelog/changeset/geobudget_V034__add_fx_rate_cache.sql
   - include:
       file: db/changelog/changeset/geobudget_V035__add_budgets.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V036__create_partners.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V037__add_partner_id_to_budgets.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V038__add_icon_to_groups.sql
+  - include:
+      file: db/changelog/changeset/geobudget_V039__add_system_group_icons.sql
+  - changeSet:
+      id: V040
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V040__add_country_to_budgets.sql

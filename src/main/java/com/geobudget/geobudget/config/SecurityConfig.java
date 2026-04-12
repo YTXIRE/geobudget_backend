@@ -40,7 +40,8 @@ public class SecurityConfig {
                                 "/api/v1/users/login",
                                 "/api/v1/users/register",
                                 "/api/v1/users/confirm",
-                                "/api/v1/country"
+                                "/api/v1/country",
+                                "/api/v1/currencies"
                         ).permitAll()
                         .anyRequest()
                         .authenticated()
