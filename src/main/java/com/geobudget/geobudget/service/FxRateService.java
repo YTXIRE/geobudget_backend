@@ -2,6 +2,7 @@ package com.geobudget.geobudget.service;
 
 import com.geobudget.geobudget.entity.FxRateCache;
 import com.geobudget.geobudget.repository.FxRateCacheRepository;
+import com.geobudget.geobudget.dto.fx.FxRateHistoryItem;
 import com.geobudget.geobudget.dto.fx.FxRateResponse;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -72,13 +74,28 @@ public class FxRateService {
             BigDecimal rate = BigDecimal.valueOf(json.getDouble("rate"))
                     .setScale(6, RoundingMode.HALF_UP);
 
+            // Check again in case another thread saved it while we were fetching
+            FxRateCache existing = fxRateCacheRepository
+                    .findByRateDateAndFromCurrencyAndToCurrency(effectiveDate, from, to)
+                    .orElse(null);
+            
+            if (existing != null) {
+                return new FxRateResponse(from, to, effectiveDate, existing.getRate(), existing.getProvider(), true);
+            }
+
             FxRateCache cache = new FxRateCache();
             cache.setRateDate(effectiveDate);
             cache.setFromCurrency(from);
             cache.setToCurrency(to);
             cache.setRate(rate);
             cache.setProvider(PROVIDER);
-            fxRateCacheRepository.save(cache);
+            
+            try {
+                fxRateCacheRepository.saveAndFlush(cache);
+            } catch (Exception saveEx) {
+                // Ignore duplicate key - another thread saved it
+                log.debug("Rate already cached: {} -> {} on {}", from, to, effectiveDate);
+            }
 
             log.info("FxRateService.getRate: {} -> {} on {} = {}", from, to, effectiveDate, rate);
             return new FxRateResponse(from, to, effectiveDate, rate, PROVIDER, false);
@@ -101,6 +118,54 @@ public class FxRateService {
                     e
             );
         }
+    }
+
+    public List<FxRateHistoryItem> getRateHistory(String fromCurrency, String toCurrency, LocalDate fromDate, LocalDate toDate) {
+        String from = normalizeCurrency(fromCurrency);
+        String to = normalizeCurrency(toCurrency);
+        
+        if (from.equals(to)) {
+            return List.of(new FxRateHistoryItem(LocalDate.now(), BigDecimal.ONE.setScale(6, RoundingMode.HALF_UP)));
+        }
+
+        LocalDate effectiveFrom = fromDate != null ? fromDate : LocalDate.now().minusDays(30);
+        LocalDate effectiveTo = toDate != null ? toDate : LocalDate.now();
+
+        List<FxRateCache> rates = fxRateCacheRepository
+                .findByFromCurrencyAndToCurrencyAndRateDateBetweenOrderByRateDateAsc(from, to, effectiveFrom, effectiveTo);
+
+        return rates.stream()
+                .map(rate -> new FxRateHistoryItem(rate.getRateDate(), rate.getRate()))
+                .toList();
+    }
+
+    public void populatePopularRates(int days) {
+        List<String> bases = List.of("USD", "EUR", "GBP");
+        List<String> targets = List.of("RUB", "USD", "EUR");
+        
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(Math.min(days, 30));
+
+        int count = 0;
+        int maxCount = 100;
+        
+        for (String from : bases) {
+            for (String to : targets) {
+                if (from.equals(to)) continue;
+                if (count >= maxCount) break;
+                
+                for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                    if (count >= maxCount) break;
+                    try {
+                        getRate(from, to, date);
+                        count++;
+                    } catch (Exception e) {
+                        log.debug("Skipped rate for {} -> {} on {}: {}", from, to, date, e.getMessage());
+                    }
+                }
+            }
+        }
+        log.info("Populated {} exchange rates", count);
     }
 
     public String normalizeCurrency(String currency) {

@@ -4,6 +4,7 @@ import com.geobudget.geobudget.dto.analytics.GeoCityAnalyticsDetailResponse;
 import com.geobudget.geobudget.dto.analytics.GeoCityAnalyticsResponse;
 import com.geobudget.geobudget.dto.analytics.GeoCityCategoryAnalyticsResponse;
 import com.geobudget.geobudget.dto.analytics.GeoCityTransactionAnalyticsResponse;
+import com.geobudget.geobudget.dto.analytics.GeoCountryAnalyticsResponse;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -78,6 +79,33 @@ public class GeoAnalyticsService {
                 categories,
                 transactions
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<GeoCountryAnalyticsResponse> getCountries(Long userId, String type, LocalDateTime from, LocalDateTime to) {
+        validateFilters(type, from, to);
+
+        List<Transaction> transactions = transactionRepository.findAll(buildSpec(userId, type, from, to));
+        Map<String, CountryAggregate> countryMap = new LinkedHashMap<>();
+
+        for (Transaction transaction : transactions) {
+            String country = blankToNull(transaction.getCountry());
+            if (country == null) {
+                continue;
+            }
+            countryMap.computeIfAbsent(country, CountryAggregate::new).add(transaction);
+        }
+
+        return countryMap.values().stream()
+                .sorted(Comparator.comparing(CountryAggregate::getExpenseTotal, Comparator.reverseOrder()))
+                .map(agg -> new GeoCountryAnalyticsResponse(
+                        agg.getCountry(),
+                        agg.getTransactionCount(),
+                        agg.getIncomeTotal(),
+                        agg.getExpenseTotal(),
+                        agg.getBalance()
+                ))
+                .toList();
     }
 
     private Map<String, CityAggregate> buildGroups(Long userId, String type, LocalDateTime from, LocalDateTime to) {
@@ -426,6 +454,47 @@ public class GeoAnalyticsService {
                         .thenComparing(Map.Entry.comparingByKey()))
                 .map(Map.Entry::getKey)
                 .orElse(null);
+    }
+
+    private final class CountryAggregate {
+        private final String country;
+        private long transactionCount = 0;
+        private BigDecimal incomeTotal = BigDecimal.ZERO;
+        private BigDecimal expenseTotal = BigDecimal.ZERO;
+
+        private CountryAggregate(String country) {
+            this.country = country;
+        }
+
+        private void add(Transaction transaction) {
+            transactionCount += 1;
+            BigDecimal value = transactionValue(transaction);
+            if ("income".equals(transaction.getType())) {
+                incomeTotal = incomeTotal.add(value);
+            } else if ("expense".equals(transaction.getType())) {
+                expenseTotal = expenseTotal.add(value);
+            }
+        }
+
+        private String getCountry() {
+            return country;
+        }
+
+        private Long getTransactionCount() {
+            return transactionCount;
+        }
+
+        private BigDecimal getIncomeTotal() {
+            return incomeTotal;
+        }
+
+        private BigDecimal getExpenseTotal() {
+            return expenseTotal;
+        }
+
+        private BigDecimal getBalance() {
+            return incomeTotal.subtract(expenseTotal);
+        }
     }
 
     private final class CategoryAggregate {

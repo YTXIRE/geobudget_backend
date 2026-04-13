@@ -2,6 +2,7 @@ package com.geobudget.geobudget.controller;
 
 import com.geobudget.geobudget.dto.analytics.GeoCityAnalyticsDetailResponse;
 import com.geobudget.geobudget.dto.analytics.GeoCityAnalyticsResponse;
+import com.geobudget.geobudget.dto.analytics.GeoCountryAnalyticsResponse;
 import com.geobudget.geobudget.security.CustomUserDetails;
 import com.geobudget.geobudget.service.GeoAnalyticsService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,6 +26,16 @@ public class GeoAnalyticsController {
 
     public GeoAnalyticsController(GeoAnalyticsService geoAnalyticsService) {
         this.geoAnalyticsService = geoAnalyticsService;
+    }
+
+    @GetMapping("/countries")
+    public ResponseEntity<List<GeoCountryAnalyticsResponse>> getCountries(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+    ) {
+        return ResponseEntity.ok(geoAnalyticsService.getCountries(userDetails.getUserId(), type, from, to));
     }
 
     @GetMapping("/cities")
