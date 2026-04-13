@@ -107,3 +107,15 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: db/changelog/changeset/geobudget_V044__add_template_recurrence_type.sql
+  - changeSet:
+      id: V045
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V045__add_extensive_default_categories.sql
+  - changeSet:
+      id: V046
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V046__add_categories_with_unique_styles.sql
