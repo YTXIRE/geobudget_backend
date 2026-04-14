@@ -131,3 +131,9 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: db/changelog/changeset/geobudget_V048__fix_duplicate_groups.sql
+  - changeSet:
+      id: V049
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V049__add_place_name_to_transactions.sql

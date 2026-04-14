@@ -4,10 +4,12 @@ import com.geobudget.geobudget.docs.geo.GetCityByIpDoc;
 import com.geobudget.geobudget.docs.geo.GetCityByIpExternalIpDoc;
 import com.geobudget.geobudget.docs.geo.GetGeoCompany;
 import com.geobudget.geobudget.docs.geo.GetIpDoc;
+import com.geobudget.geobudget.dto.geo.PlaceSuggestionDto;
 import com.geobudget.geobudget.dto.geoCompany.AddressDto;
 import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.service.DadataService;
 import com.geobudget.geobudget.service.GeoIpService;
+import com.geobudget.geobudget.service.NominatimService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -21,16 +23,19 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 @Slf4j
 @Validated
 @PreAuthorize("hasRole('USER')")
 @RestController
 @RequestMapping("/api/v1/geo")
 @RequiredArgsConstructor
-@Tag(name = "Geo", description = "Работа с геолокацией")
+@Tag(name = "Geo", description = "Работа с геолокацией")
 public class GeoController {
     private final GeoIpService geoIpService;
     private final DadataService dadataService;
+    private final NominatimService nominatimService;
 
     @GetCityByIpDoc
     @GetMapping("/get-city-and-country-by-ip")
@@ -58,5 +63,16 @@ public class GeoController {
     @GetMapping("/get-geo-company")
     public AddressDto getGeoCompany(@RequestParam @NotBlank(message = "Адрес обязателен") String address) throws Exception {
         return dadataService.getGeoCompany(address);
+    }
+
+    @GetMapping("/search-places")
+    public ResponseEntity<List<PlaceSuggestionDto>> searchPlaces(
+            @RequestParam @NotBlank(message = "Запрос обязателен") String query,
+            @RequestParam(required = false) String country
+    ) {
+        log.info("GeoController.searchPlaces: query={}, country={}", query, country);
+        List<PlaceSuggestionDto> results = nominatimService.searchPlaces(query, country);
+        log.info("GeoController.searchPlaces: returning {} results", results.size());
+        return ResponseEntity.ok(results);
     }
 }

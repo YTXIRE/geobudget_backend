@@ -69,6 +69,9 @@ public class Transaction {
     @Column(name = "place_id", length = 255)
     private String placeId;
 
+    @Column(name = "place_name", length = 255)
+    private String placeName;
+
     @Column(name = "location_source", length = 16)
     private String locationSource;
 

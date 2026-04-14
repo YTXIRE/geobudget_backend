@@ -224,6 +224,7 @@ public class TransactionService {
         transaction.setCountry(request.getCountry());
         transaction.setRegion(request.getRegion());
         transaction.setPlaceId(request.getPlaceId());
+        transaction.setPlaceName(request.getPlaceName());
         transaction.setLocationSource(request.getLocationSource());
         applyCurrencyFields(
                 transaction,
@@ -274,6 +275,7 @@ public class TransactionService {
         transaction.setCountry(request.getCountry());
         transaction.setRegion(request.getRegion());
         transaction.setPlaceId(request.getPlaceId());
+        transaction.setPlaceName(request.getPlaceName());
         transaction.setLocationSource(request.getLocationSource());
         applyCurrencyFields(
                 transaction,

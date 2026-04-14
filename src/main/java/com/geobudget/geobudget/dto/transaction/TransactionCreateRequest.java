@@ -56,6 +56,9 @@ public class TransactionCreateRequest {
     @Size(max = 255, message = "placeId size must be <= 255")
     private String placeId;
 
+    @Size(max = 255, message = "placeName size must be <= 255")
+    private String placeName;
+
     @Pattern(regexp = "gps|manual|map|ip", message = "locationSource must be gps, manual, map or ip")
     private String locationSource;
 

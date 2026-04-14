@@ -27,6 +27,7 @@ public class TransactionResponse {
     private String country;
     private String region;
     private String placeId;
+    private String placeName;
     private String locationSource;
     private BigDecimal originalAmount;
     private String originalCurrency;
