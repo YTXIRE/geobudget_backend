@@ -119,3 +119,15 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: db/changelog/changeset/geobudget_V046__add_categories_with_unique_styles.sql
+  - changeSet:
+      id: V047
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V047__add_location_to_budgets.sql
+  - changeSet:
+      id: V048
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V048__fix_duplicate_groups.sql

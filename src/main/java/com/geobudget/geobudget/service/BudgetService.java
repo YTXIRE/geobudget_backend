@@ -67,6 +67,7 @@ public class BudgetService {
         User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
         Budget budget = new Budget();
         applyRequest(budget, request, userId, user);
+        validateNoOverlap(userId, null, request);
         budget.setUserId(userId);
         return toResponse(budgetRepository.save(budget));
     }
@@ -76,6 +77,7 @@ public class BudgetService {
         User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
         Budget budget = resolveBudget(userId, id);
         applyRequest(budget, request, userId, user);
+        validateNoOverlap(userId, id, request);
         return toResponse(budgetRepository.save(budget));
     }
 
@@ -154,6 +156,8 @@ public class BudgetService {
         budget.setEndsAt(request.getEndsAt());
         budget.setWarningThreshold(request.getWarningThreshold().setScale(2, RoundingMode.HALF_UP));
         budget.setIsActive(request.getIsActive() == null ? Boolean.TRUE : request.getIsActive());
+        budget.setLocationType(request.getLocationType());
+        budget.setLocationValue(request.getLocationValue() != null ? request.getLocationValue().trim() : null);
 
         if (request.getPartnerId() != null) {
             if (!partnerRepository.existsAcceptedPartnership(userId, request.getPartnerId())) {
@@ -219,6 +223,49 @@ public class BudgetService {
         if ("country".equals(request.getScopeType()) && (request.getCountry() == null || request.getCountry().isBlank())) {
             throw new IllegalArgumentException("country is required for country budget");
         }
+        if (request.getLocationType() != null && !request.getLocationType().isBlank()) {
+            if (!"city".equals(request.getLocationType()) && !"country".equals(request.getLocationType())) {
+                throw new IllegalArgumentException("locationType must be 'city' or 'country'");
+            }
+            if (request.getLocationValue() == null || request.getLocationValue().isBlank()) {
+                throw new IllegalArgumentException("locationValue is required when locationType is set");
+            }
+        }
+    }
+
+    private void validateNoOverlap(Long userId, Long excludeBudgetId, BudgetRequest request) {
+        Long categoryId = null;
+        Long groupId = null;
+        String region = null;
+        String city = null;
+        String country = null;
+
+        switch (request.getScopeType()) {
+            case "category" -> categoryId = request.getCategoryId();
+            case "group" -> groupId = request.getGroupId();
+            case "region" -> region = request.getRegion();
+            case "city" -> city = request.getCity();
+            case "country" -> country = request.getCountry();
+        }
+
+        boolean overlaps = budgetRepository.existsOverlappingBudget(
+                userId,
+                excludeBudgetId != null ? excludeBudgetId : -1L,
+                request.getStartsAt(),
+                request.getEndsAt(),
+                request.getScopeType(),
+                categoryId,
+                groupId,
+                region,
+                city,
+                country,
+                request.getLocationType(),
+                request.getLocationValue() != null ? request.getLocationValue().trim().toLowerCase() : null
+        );
+
+        if (overlaps) {
+            throw new IllegalArgumentException("Budget period overlaps with existing budget for the same scope");
+        }
     }
 
     private BudgetProgressResponse computeProgress(Long userId, Budget budget) {
@@ -258,11 +305,28 @@ public class BudgetService {
         LocalDate projectedExceedDate = calculateProjectedExceedDate(budget, averageDailySpend);
         List<BudgetTopTransactionResponse> topTransactions = buildTopTransactions(transactions);
 
+        Long catIconId = (budget.getCategory() != null && budget.getCategory().getIcon() != null)
+                ? budget.getCategory().getIcon().getId() : null;
+        Long catColorId = (budget.getCategory() != null && budget.getCategory().getColor() != null)
+                ? budget.getCategory().getColor().getId() : null;
+        Long grpIconId = (budget.getGroup() != null && budget.getGroup().getIcon() != null)
+                ? budget.getGroup().getIcon().getId() : null;
+        Long grpColorId = (budget.getGroup() != null && budget.getGroup().getColor() != null)
+                ? budget.getGroup().getColor().getId() : null;
+
         return BudgetProgressResponse.builder()
                 .budgetId(budget.getId())
                 .name(budget.getName())
                 .scopeType(budget.getScopeType())
                 .scopeLabel(scopeLabel(budget))
+                .categoryId(budget.getCategory() != null ? budget.getCategory().getId() : null)
+                .categoryName(budget.getCategory() != null ? budget.getCategory().getName() : null)
+                .categoryIcon(catIconId)
+                .categoryColorId(catColorId)
+                .groupId(budget.getGroup() != null ? budget.getGroup().getId() : null)
+                .groupName(budget.getGroup() != null ? budget.getGroup().getName() : null)
+                .groupIcon(grpIconId)
+                .groupColorId(grpColorId)
                 .amountLimit(limit)
                 .spent(spent)
                 .remaining(remaining)
@@ -270,6 +334,8 @@ public class BudgetService {
                 .status(status)
                 .matchedTransactionsCount((long) transactions.size())
                 .baseCurrency(budget.getBaseCurrency())
+                .locationType(budget.getLocationType())
+                .locationValue(budget.getLocationValue())
                 .dailySeries(dailySeries)
                 .averageDailySpend(averageDailySpend)
                 .safeDailySpend(safeDailySpend)
@@ -357,12 +423,28 @@ public class BudgetService {
             predicates.add(cb.lessThan(root.get("occurredAt"), budget.getEndsAt().plusDays(1).atStartOfDay()));
 
             switch (budget.getScopeType()) {
-                case "category" -> predicates.add(cb.equal(root.get("category").get("id"), budget.getCategory().getId()));
-                case "group" -> predicates.add(cb.equal(root.get("category").get("group").get("id"), budget.getGroup().getId()));
+                case "category" -> {
+                    if (budget.getCategory() != null) {
+                        predicates.add(cb.equal(root.get("category").get("id"), budget.getCategory().getId()));
+                    }
+                }
+                case "group" -> {
+                    if (budget.getGroup() != null) {
+                        predicates.add(cb.equal(root.get("category").get("group").get("id"), budget.getGroup().getId()));
+                    }
+                }
                 case "region" -> predicates.add(cb.equal(cb.lower(root.get("region")), budget.getRegion().toLowerCase()));
                 case "city" -> predicates.add(cb.equal(cb.lower(root.get("city")), budget.getCity().toLowerCase()));
                 case "country" -> predicates.add(cb.equal(cb.lower(root.get("country")), budget.getCountry().toLowerCase()));
                 default -> throw new IllegalArgumentException("Unsupported scopeType: " + budget.getScopeType());
+            }
+
+            if (budget.getLocationType() != null && budget.getLocationValue() != null) {
+                if ("city".equals(budget.getLocationType())) {
+                    predicates.add(cb.equal(cb.lower(root.get("city")), budget.getLocationValue().toLowerCase()));
+                } else if ("country".equals(budget.getLocationType())) {
+                    predicates.add(cb.equal(cb.lower(root.get("country")), budget.getLocationValue().toLowerCase()));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -390,11 +472,17 @@ public class BudgetService {
                 .scopeType(budget.getScopeType())
                 .categoryId(budget.getCategory() != null ? budget.getCategory().getId() : null)
                 .categoryName(budget.getCategory() != null ? budget.getCategory().getName() : null)
+                .categoryIcon(budget.getCategory() != null && budget.getCategory().getIcon() != null ? budget.getCategory().getIcon().getId() : null)
+                .categoryColorId(budget.getCategory() != null && budget.getCategory().getColor() != null ? budget.getCategory().getColor().getId() : null)
                 .groupId(budget.getGroup() != null ? budget.getGroup().getId() : null)
                 .groupName(budget.getGroup() != null ? budget.getGroup().getName() : null)
+                .groupIcon(budget.getGroup() != null && budget.getGroup().getIcon() != null ? budget.getGroup().getIcon().getId() : null)
+                .groupColorId(budget.getGroup() != null && budget.getGroup().getColor() != null ? budget.getGroup().getColor().getId() : null)
                 .region(budget.getRegion())
                 .city(budget.getCity())
                 .country(budget.getCountry())
+                .locationType(budget.getLocationType())
+                .locationValue(budget.getLocationValue())
                 .startsAt(budget.getStartsAt())
                 .endsAt(budget.getEndsAt())
                 .warningThreshold(budget.getWarningThreshold())

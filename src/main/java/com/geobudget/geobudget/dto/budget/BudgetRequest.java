@@ -44,6 +44,11 @@ public class BudgetRequest {
     @Size(max = 120)
     private String country;
 
+    private String locationType;
+
+    @Size(max = 120)
+    private String locationValue;
+
     @NotNull
     private LocalDate startsAt;
 

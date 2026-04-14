@@ -60,6 +60,12 @@ public class Budget {
     @Column(length = 120)
     private String country;
 
+    @Column(name = "location_type", length = 24)
+    private String locationType;
+
+    @Column(name = "location_value", length = 120)
+    private String locationValue;
+
     @Column(name = "starts_at", nullable = false)
     private LocalDate startsAt;
 

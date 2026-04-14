@@ -18,6 +18,14 @@ public class BudgetProgressResponse {
     private String name;
     private String scopeType;
     private String scopeLabel;
+    private Long categoryId;
+    private String categoryName;
+    private Long categoryIcon;
+    private Long categoryColorId;
+    private Long groupId;
+    private String groupName;
+    private Long groupIcon;
+    private Long groupColorId;
     private BigDecimal amountLimit;
     private BigDecimal spent;
     private BigDecimal remaining;
@@ -25,6 +33,8 @@ public class BudgetProgressResponse {
     private String status;
     private Long matchedTransactionsCount;
     private String baseCurrency;
+    private String locationType;
+    private String locationValue;
     private List<BudgetDailyPointResponse> dailySeries;
     private BigDecimal averageDailySpend;
     private BigDecimal safeDailySpend;

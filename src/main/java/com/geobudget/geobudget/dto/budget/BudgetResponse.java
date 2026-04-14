@@ -22,11 +22,17 @@ public class BudgetResponse {
     private String scopeType;
     private Long categoryId;
     private String categoryName;
+    private Long categoryIcon;
+    private Long categoryColorId;
     private Long groupId;
     private String groupName;
+    private Long groupIcon;
+    private Long groupColorId;
     private String region;
     private String city;
     private String country;
+    private String locationType;
+    private String locationValue;
     private LocalDate startsAt;
     private LocalDate endsAt;
     private BigDecimal warningThreshold;
