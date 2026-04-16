@@ -198,6 +198,10 @@ public class TransactionService {
     }
 
     private Category validateBusinessRules(Long userId, String type, Long categoryId) {
+        if ("transfer_to_goal".equals(type)) {
+            return null;
+        }
+
         if (!"income".equals(type) && !"expense".equals(type)) {
             throw new IllegalArgumentException("type must be income or expense");
         }

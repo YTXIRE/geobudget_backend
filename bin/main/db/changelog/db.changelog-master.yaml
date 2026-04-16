@@ -107,3 +107,51 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: db/changelog/changeset/geobudget_V044__add_template_recurrence_type.sql
+  - changeSet:
+      id: V045
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V045__add_extensive_default_categories.sql
+  - changeSet:
+      id: V046
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V046__add_categories_with_unique_styles.sql
+  - changeSet:
+      id: V047
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V047__add_location_to_budgets.sql
+  - changeSet:
+      id: V048
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V048__fix_duplicate_groups.sql
+  - changeSet:
+      id: V049
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V049__add_place_name_to_transactions.sql
+  - changeSet:
+      id: V050
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V050__create_savings_goals.sql
+  - changeSet:
+      id: V051
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V051__create_goal_contributions.sql
+  - changeSet:
+      id: V052
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V052__create_goal_milestones.sql

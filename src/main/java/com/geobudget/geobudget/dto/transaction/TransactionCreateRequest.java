@@ -20,14 +20,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TransactionCreateRequest {
     @NotBlank(message = "type is required")
-    @Pattern(regexp = "income|expense", message = "type must be income or expense")
+    @Pattern(regexp = "income|expense|transfer_to_goal", message = "type must be income, expense, or transfer_to_goal")
     private String type;
 
     @NotNull(message = "amount is required")
     @DecimalMin(value = "0.01", message = "amount must be greater than 0")
     private BigDecimal amount;
 
-    @NotNull(message = "categoryId is required")
     private Long categoryId;
 
     @Size(max = 255, message = "description size must be <= 255")
