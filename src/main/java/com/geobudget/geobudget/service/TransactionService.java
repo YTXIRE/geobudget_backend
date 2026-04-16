@@ -1,5 +1,6 @@
 package com.geobudget.geobudget.service;
 
+import com.geobudget.geobudget.dto.tag.TagDto;
 import com.geobudget.geobudget.dto.transaction.TransactionCreateRequest;
 import com.geobudget.geobudget.dto.transaction.TransactionCategoryDto;
 import com.geobudget.geobudget.dto.transaction.TransactionResponse;
@@ -9,10 +10,13 @@ import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.dto.fx.FxRateResponse;
 import com.geobudget.geobudget.entity.Category;
+import com.geobudget.geobudget.entity.TagTransaction;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.PartnerRepository;
+import com.geobudget.geobudget.repository.TagRepository;
+import com.geobudget.geobudget.repository.TagTransactionRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionStatsProjection;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
@@ -33,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,6 +49,8 @@ public class TransactionService {
     private final UserRepository userRepository;
     private final FxRateService fxRateService;
     private final PartnerRepository partnerRepository;
+    private final TagRepository tagRepository;
+    private final TagTransactionRepository tagTransactionRepository;
 
     @Transactional
     public TransactionResponse create(Long userId, TransactionCreateRequest request) {
@@ -68,7 +75,20 @@ public class TransactionService {
 
         applyExtraFields(transaction, request, user);
 
-        return mapToResponse(transactionRepository.save(transaction));
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+            for (Long tagId : request.getTagIds()) {
+                TagTransaction tt = TagTransaction.builder()
+                        .tagId(tagId)
+                        .transactionId(savedTransaction.getId())
+                        .userId(userId)
+                        .build();
+                tagTransactionRepository.save(tt);
+            }
+        }
+
+        return mapToResponse(savedTransaction);
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +98,7 @@ public class TransactionService {
             LocalDateTime from,
             LocalDateTime to,
             Long categoryId,
+            List<Long> tagIds,
             String city,
             String country,
             Long partnerId,
@@ -85,15 +106,15 @@ public class TransactionService {
     ) {
         validatePeriod(from, to);
 
-        if (type != null && !"income".equals(type) && !"expense".equals(type)) {
-            throw new IllegalArgumentException("type must be income or expense");
+        if (type != null && !"income".equals(type) && !"expense".equals(type) && !"transfer_to_goal".equals(type)) {
+            throw new IllegalArgumentException("type must be income, expense or transfer_to_goal");
         }
 
         if (categoryId != null) {
             resolveCategory(userId, categoryId);
         }
 
-        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId, city, country, partnerId);
+        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId, tagIds, city, country, partnerId);
 
         return transactionRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
@@ -118,7 +139,7 @@ public class TransactionService {
             throw new IllegalArgumentException("User is not a partner with this user");
         }
 
-        Specification<Transaction> spec = buildSpec(partnerId, null, from, to, null, null, null, null);
+        Specification<Transaction> spec = buildSpec(partnerId, null, from, to, null, null, null, null, null);
 
         return transactionRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
@@ -138,6 +159,18 @@ public class TransactionService {
         transaction.setDescription(request.getDescription());
         transaction.setOccurredAt(request.getOccurredAt());
         applyExtraFields(transaction, request, user);
+
+        tagTransactionRepository.deleteByTransactionIdAndUserId(id, userId);
+        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+            for (Long tagId : request.getTagIds()) {
+                TagTransaction tt = TagTransaction.builder()
+                        .tagId(tagId)
+                        .transactionId(id)
+                        .userId(userId)
+                        .build();
+                tagTransactionRepository.save(tt);
+            }
+        }
 
         return mapToResponse(transactionRepository.save(transaction));
     }
@@ -395,6 +428,20 @@ public class TransactionService {
     }
 
     private TransactionResponse mapToResponse(Transaction transaction) {
+        final List<TagDto> tags = tagTransactionRepository
+                .findByTransactionIdAndUserId(transaction.getId(), transaction.getUserId())
+                .stream()
+                .map(tt -> tagRepository.findByIdAndUserId(tt.getTagId(), transaction.getUserId()))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .map(tag -> TagDto.builder()
+                        .id(tag.getId())
+                        .name(tag.getName())
+                        .color(tag.getColor())
+                        .icon(tag.getIcon())
+                        .build())
+                .collect(Collectors.toList());
+
         return TransactionResponse.builder()
                 .id(transaction.getId())
                 .userId(transaction.getUserId())
@@ -420,6 +467,7 @@ public class TransactionService {
                 .originalCurrency(transaction.getOriginalCurrency())
                 .rateToBase(transaction.getRateToBase())
                 .baseAmount(transaction.getBaseAmount())
+                .tags(tags)
                 .createdAt(transaction.getCreatedAt())
                 .updatedAt(transaction.getUpdatedAt())
                 .build();
@@ -437,12 +485,14 @@ public class TransactionService {
             LocalDateTime from,
             LocalDateTime to,
             Long categoryId,
+            List<Long> tagIds,
             String city,
             String country,
             Long partnerId
     ) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            query.distinct(true);
             
             if (partnerId != null) {
                 predicates.add(cb.or(
@@ -469,6 +519,18 @@ public class TransactionService {
 
             if (categoryId != null) {
                 predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            }
+
+            if (tagIds != null && !tagIds.isEmpty()) {
+                var subquery = query.subquery(Long.class);
+                var tagTransactionRoot = subquery.from(TagTransaction.class);
+                subquery.select(tagTransactionRoot.get("transactionId"));
+                subquery.where(
+                        cb.equal(tagTransactionRoot.get("transactionId"), root.get("id")),
+                        cb.equal(tagTransactionRoot.get("userId"), userId),
+                        tagTransactionRoot.get("tagId").in(tagIds)
+                );
+                predicates.add(cb.exists(subquery));
             }
 
             if (city != null && !city.isBlank()) {

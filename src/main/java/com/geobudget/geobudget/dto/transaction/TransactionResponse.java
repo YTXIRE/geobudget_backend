@@ -1,5 +1,6 @@
 package com.geobudget.geobudget.dto.transaction;
 
+import com.geobudget.geobudget.dto.tag.TagDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -33,6 +35,7 @@ public class TransactionResponse {
     private String originalCurrency;
     private BigDecimal rateToBase;
     private BigDecimal baseAmount;
+    private List<TagDto> tags;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

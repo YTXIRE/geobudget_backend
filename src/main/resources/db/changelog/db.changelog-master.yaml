@@ -161,3 +161,21 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: db/changelog/changeset/geobudget_V053__allow_null_category_for_transfer.sql
+  - changeSet:
+      id: V054
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V054__create_tags.sql
+  - changeSet:
+      id: V055
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V055__create_subscriptions.sql
+  - changeSet:
+      id: V056
+      author: geobudget
+      changes:
+        - sqlFile:
+            path: db/changelog/changeset/geobudget_V056__add_category_to_subscriptions.sql

@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -72,4 +73,6 @@ public class TransactionCreateRequest {
 
     @DecimalMin(value = "0.01", message = "baseAmount must be greater than 0")
     private BigDecimal baseAmount;
+
+    private List<Long> tagIds;
 }

@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -85,12 +86,14 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) List<Long> tagIds,
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String country,
             @RequestParam(required = false) Long partnerId,
             @PageableDefault(size = 20, sort = "occurredAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.ok(transactionService.getAll(userDetails.getUserId(), type, from, to, categoryId, city, country, partnerId, pageable));
+        return ResponseEntity.ok(transactionService.getAll(
+                userDetails.getUserId(), type, from, to, categoryId, tagIds, city, country, partnerId, pageable));
     }
 
     @GetMapping("/{id}")
