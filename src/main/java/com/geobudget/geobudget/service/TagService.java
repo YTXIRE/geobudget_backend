@@ -173,9 +173,15 @@ public class TagService {
 
     @Transactional
     public void addTagsToTransaction(Long transactionId, List<Long> tagIds, Long userId) {
+        transactionRepository.findByIdAndUserIdAndIsDeletedFalse(transactionId, userId)
+                .orElseThrow(() -> new RuntimeException("Транзакция не найдена"));
+
         tagTransactionRepository.deleteByTransactionIdAndUserId(transactionId, userId);
 
         for (Long tagId : tagIds) {
+            tagRepository.findByIdAndUserId(tagId, userId)
+                    .orElseThrow(() -> new RuntimeException("Тег не найден"));
+
             TagTransaction tt = TagTransaction.builder()
                     .tagId(tagId)
                     .transactionId(transactionId)
@@ -186,9 +192,12 @@ public class TagService {
     }
 
     public List<TagDto> getTagsByTransaction(Long transactionId, Long userId) {
+        transactionRepository.findByIdAndUserIdAndIsDeletedFalse(transactionId, userId)
+                .orElseThrow(() -> new RuntimeException("Транзакция не найдена"));
+
         return tagTransactionRepository.findByTransactionIdAndUserId(transactionId, userId)
                 .stream()
-                .map(tt -> tagRepository.findById(tt.getTagId()))
+                .map(tt -> tagRepository.findByIdAndUserId(tt.getTagId(), userId))
                 .filter(java.util.Optional::isPresent)
                 .map(java.util.Optional::get)
                 .map(this::toDto)

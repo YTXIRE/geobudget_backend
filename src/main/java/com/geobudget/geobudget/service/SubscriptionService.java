@@ -3,7 +3,9 @@ package com.geobudget.geobudget.service;
 import com.geobudget.geobudget.dto.subscription.*;
 import com.geobudget.geobudget.dto.transaction.TransactionCreateRequest;
 import com.geobudget.geobudget.dto.transaction.TransactionResponse;
+import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.Subscription;
+import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.SubscriptionRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.persistence.EntityNotFoundException;
@@ -22,6 +24,7 @@ import java.util.List;
 public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final CategoryRepository categoryRepository;
     private final TransactionService transactionService;
 
     @Transactional(readOnly = true)
@@ -63,6 +66,7 @@ public class SubscriptionService {
 
     @Transactional
     public SubscriptionResponse createSubscription(Long userId, CreateSubscriptionRequest request) {
+        Category category = resolveExpenseCategory(userId, request.getCategoryId());
         Subscription subscription = Subscription.builder()
                 .userId(userId)
                 .name(request.getName().trim())
@@ -74,7 +78,7 @@ public class SubscriptionService {
                 .status(Subscription.Status.ACTIVE)
                 .description(normalizeText(request.getDescription()))
                 .color(normalizeColor(request.getColor()))
-                .categoryId(request.getCategoryId())
+                .categoryId(category != null ? category.getId() : null)
                 .build();
         return toResponse(subscriptionRepository.save(subscription));
     }
@@ -101,15 +105,10 @@ public class SubscriptionService {
         if (request.getReminderDays() != null) {
             subscription.setReminderDays(request.getReminderDays());
         }
-        if (request.getDescription() != null) {
-            subscription.setDescription(normalizeText(request.getDescription()));
-        }
-        if (request.getColor() != null) {
-            subscription.setColor(normalizeColor(request.getColor()));
-        }
-        if (request.getCategoryId() != null) {
-            subscription.setCategoryId(request.getCategoryId());
-        }
+        subscription.setDescription(normalizeText(request.getDescription()));
+        subscription.setColor(normalizeColor(request.getColor()));
+        Category category = resolveExpenseCategory(userId, request.getCategoryId());
+        subscription.setCategoryId(category != null ? category.getId() : null);
         if (request.getStatus() != null) {
             subscription.setStatus(request.getStatus());
         }
@@ -147,9 +146,10 @@ public class SubscriptionService {
     public SubscriptionResponse markPaid(Long id, Long userId, HttpServletRequest httpRequest) {
         Subscription subscription = getOwnedSubscription(id, userId);
         LocalDate today = LocalDate.now();
+        Long createdTransactionId = null;
 
         if (subscription.getCategoryId() != null) {
-            transactionService.create(userId, TransactionCreateRequest.builder()
+            TransactionResponse createdTransaction = transactionService.create(userId, TransactionCreateRequest.builder()
                     .type("expense")
                     .amount(subscription.getAmount())
                     .categoryId(subscription.getCategoryId())
@@ -158,6 +158,7 @@ public class SubscriptionService {
                     .originalAmount(subscription.getAmount())
                     .originalCurrency(subscription.getCurrency())
                     .build(), httpRequest);
+            createdTransactionId = createdTransaction.getId();
         }
 
         LocalDate nextDate = subscription.getNextPaymentDate();
@@ -169,7 +170,7 @@ public class SubscriptionService {
         subscription.setLastPaidDate(today);
         subscription.setNextPaymentDate(nextDate);
         subscription.setStatus(Subscription.Status.ACTIVE);
-        return toResponse(subscriptionRepository.save(subscription));
+        return toResponse(subscriptionRepository.save(subscription), createdTransactionId);
     }
 
     private Subscription getOwnedSubscription(Long id, Long userId) {
@@ -178,6 +179,10 @@ public class SubscriptionService {
     }
 
     private SubscriptionResponse toResponse(Subscription subscription) {
+        return toResponse(subscription, null);
+    }
+
+    private SubscriptionResponse toResponse(Subscription subscription, Long createdTransactionId) {
         LocalDate today = LocalDate.now();
         long daysUntil = ChronoUnit.DAYS.between(today, subscription.getNextPaymentDate());
 
@@ -194,6 +199,7 @@ public class SubscriptionService {
                 .description(subscription.getDescription())
                 .color(subscription.getColor())
                 .categoryId(subscription.getCategoryId())
+                .createdTransactionId(createdTransactionId)
                 .overdue(isOverdue(subscription))
                 .dueSoon(isDueSoon(subscription))
                 .daysUntilPayment((int) daysUntil)
@@ -213,7 +219,27 @@ public class SubscriptionService {
         }
         LocalDate today = LocalDate.now();
         LocalDate threshold = today.plusDays(subscription.getReminderDays());
-        return !subscription.getNextPaymentDate().isAfter(threshold);
+        return !subscription.getNextPaymentDate().isBefore(today)
+                && !subscription.getNextPaymentDate().isAfter(threshold);
+    }
+
+    private Category resolveExpenseCategory(Long userId, Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+
+        if (!"system".equals(category.getType()) && !userId.equals(category.getUserId())) {
+            throw new EntityNotFoundException("Category not found");
+        }
+
+        if (!"expense".equals(category.getTransactionType())) {
+            throw new IllegalArgumentException("Subscription category must be expense type");
+        }
+
+        return category;
     }
 
     private BigDecimal toMonthlyAmount(Subscription subscription) {
