@@ -147,7 +147,11 @@ public class PartnerService {
     public PartnerStatsResponse getPartnerStats(Long userId, Long partnerId, 
             LocalDateTime from, LocalDateTime to) {
         if (!partnerRepository.existsAcceptedPartnership(userId, partnerId)) {
-            throw new IllegalArgumentException("Not a partner");
+            return PartnerStatsResponse.builder()
+                    .totalExpense(BigDecimal.ZERO)
+                    .totalIncome(BigDecimal.ZERO)
+                    .transactionCount(0)
+                    .build();
         }
 
         List<Transaction> transactions = transactionRepository
@@ -264,10 +268,13 @@ public class PartnerService {
     }
 
     private PartnerDto mapToDto(Partner partner) {
-        User partnerUser = userRepository.findById(partner.getUserId().equals(partner.getPartnerId()) 
-                ? partner.getUserId() 
-                : partner.getPartnerId())
-                .orElse(null);
+        // partnership.userId = creator = the PARTNER
+        // partnership.partnerId = invited = current user
+        // So partner = userId
+        Long partnerId = partner.getUserId();
+        
+        // Load actual partner data from Users table
+        User partnerUser = userRepository.findById(partnerId).orElse(null);
 
         return PartnerDto.builder()
                 .id(partner.getId())

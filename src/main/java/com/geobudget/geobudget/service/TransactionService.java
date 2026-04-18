@@ -139,7 +139,7 @@ public class TransactionService {
     ) {
         boolean hasPartnership = partnerRepository.existsAcceptedPartnership(userId, partnerId);
         if (!hasPartnership) {
-            throw new IllegalArgumentException("User is not a partner with this user");
+            return Page.empty();
         }
 
         Specification<Transaction> spec = buildSpec(java.util.List.of(partnerId), userId, null, from, to, null, null, null, null, null);
