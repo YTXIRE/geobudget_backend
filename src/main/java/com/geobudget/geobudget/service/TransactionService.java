@@ -88,7 +88,7 @@ public class TransactionService {
             }
         }
 
-        return mapToResponse(savedTransaction);
+        return mapToResponse(savedTransaction, userId);
     }
 
     @Transactional(readOnly = true)
@@ -102,6 +102,7 @@ public class TransactionService {
             String city,
             String country,
             Long partnerId,
+            boolean includePartners,
             Pageable pageable
     ) {
         validatePeriod(from, to);
@@ -114,17 +115,18 @@ public class TransactionService {
             resolveCategory(userId, categoryId);
         }
 
-        Specification<Transaction> spec = buildSpec(userId, type, from, to, categoryId, tagIds, city, country, partnerId);
+        List<Long> visibleUserIds = includePartners ? getVisibleUserIds(userId) : List.of(userId);
+        Specification<Transaction> spec = buildSpec(visibleUserIds, userId, type, from, to, categoryId, tagIds, city, country, partnerId);
 
         return transactionRepository.findAll(spec, pageable)
-                .map(this::mapToResponse);
+                .map(transaction -> mapToResponse(transaction, userId));
     }
 
     @Transactional(readOnly = true)
     public TransactionResponse getById(Long userId, Long id) {
         Transaction transaction = transactionRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
-        return mapToResponse(transaction);
+        return mapToResponse(transaction, userId);
     }
 
     @Transactional(readOnly = true)
@@ -135,14 +137,15 @@ public class TransactionService {
             LocalDateTime to,
             Pageable pageable
     ) {
-        if (!partnerRepository.existsAcceptedPartnership(userId, partnerId)) {
+        boolean hasPartnership = partnerRepository.existsAcceptedPartnership(userId, partnerId);
+        if (!hasPartnership) {
             throw new IllegalArgumentException("User is not a partner with this user");
         }
 
-        Specification<Transaction> spec = buildSpec(partnerId, null, from, to, null, null, null, null, null);
-
-        return transactionRepository.findAll(spec, pageable)
-                .map(this::mapToResponse);
+        Specification<Transaction> spec = buildSpec(java.util.List.of(partnerId), userId, null, from, to, null, null, null, null, null);
+        var result = transactionRepository.findAll(spec, pageable);
+        
+        return result.map(transaction -> mapToResponse(transaction, userId));
     }
 
     @Transactional
@@ -172,7 +175,7 @@ public class TransactionService {
             }
         }
 
-        return mapToResponse(transactionRepository.save(transaction));
+        return mapToResponse(transactionRepository.save(transaction), userId);
     }
 
     @Transactional
@@ -187,9 +190,28 @@ public class TransactionService {
     public TransactionSummaryResponse getSummary(Long userId, LocalDateTime from, LocalDateTime to) {
         validatePeriod(from, to);
 
-        TransactionSummaryProjection projection = transactionRepository.getSummary(userId, from, to);
-        BigDecimal income = projection != null && projection.getIncome() != null ? projection.getIncome() : BigDecimal.ZERO;
-        BigDecimal expense = projection != null && projection.getExpense() != null ? projection.getExpense() : BigDecimal.ZERO;
+        Specification<Transaction> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("userId"), userId));
+            predicates.add(cb.isFalse(root.get("isDeleted")));
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("occurredAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("occurredAt"), to));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        List<Transaction> transactions = transactionRepository.findAll(spec);
+        BigDecimal income = transactions.stream()
+                .filter(t -> "income".equals(t.getType()))
+                .map(t -> t.getBaseAmount() != null ? t.getBaseAmount() : t.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal expense = transactions.stream()
+                .filter(t -> "expense".equals(t.getType()))
+                .map(t -> t.getBaseAmount() != null ? t.getBaseAmount() : t.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return TransactionSummaryResponse.builder()
                 .income(income)
@@ -218,11 +240,21 @@ public class TransactionService {
             throw new IllegalArgumentException("type must be income or expense");
         }
 
-        TransactionStatsProjection projection = transactionRepository.getStats(userId, type);
-        BigDecimal total = projection != null && projection.getTotalAmount() != null
-                ? projection.getTotalAmount()
-                : BigDecimal.ZERO;
-        Long count = projection != null && projection.getCount() != null ? projection.getCount() : 0L;
+        Specification<Transaction> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("userId"), userId));
+            predicates.add(cb.isFalse(root.get("isDeleted")));
+            if (type != null) {
+                predicates.add(cb.equal(root.get("type"), type));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        List<Transaction> transactions = transactionRepository.findAll(spec);
+        BigDecimal total = transactions.stream()
+                .map(t -> t.getBaseAmount() != null ? t.getBaseAmount() : t.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Long count = (long) transactions.size();
 
         return TransactionStatsResponse.builder()
                 .totalAmount(total)
@@ -427,7 +459,7 @@ public class TransactionService {
         return category;
     }
 
-    private TransactionResponse mapToResponse(Transaction transaction) {
+    private TransactionResponse mapToResponse(Transaction transaction, Long viewerUserId) {
         final List<TagDto> tags = tagTransactionRepository
                 .findByTransactionIdAndUserId(transaction.getId(), transaction.getUserId())
                 .stream()
@@ -445,6 +477,8 @@ public class TransactionService {
         return TransactionResponse.builder()
                 .id(transaction.getId())
                 .userId(transaction.getUserId())
+                .ownerName(resolveOwnerName(transaction.getUserId()))
+                .editable(transaction.getUserId().equals(viewerUserId))
                 .type(transaction.getType())
                 .amount(transaction.getAmount())
                 .categoryId(transaction.getCategory() != null ? transaction.getCategory().getId() : null)
@@ -473,6 +507,22 @@ public class TransactionService {
                 .build();
     }
 
+    private List<Long> getVisibleUserIds(Long userId) {
+        List<Long> userIds = new ArrayList<>();
+        userIds.add(userId);
+        userIds.addAll(partnerRepository.findAllAcceptedForUser(userId).stream()
+                .map(partner -> partner.getUserId().equals(userId) ? partner.getPartnerId() : partner.getUserId())
+                .distinct()
+                .toList());
+        return userIds;
+    }
+
+    private String resolveOwnerName(Long ownerId) {
+        return userRepository.findById(ownerId)
+                .map(User::getUsername)
+                .orElse("Пользователь");
+    }
+
     private void validatePeriod(LocalDateTime from, LocalDateTime to) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException("from must be before or equal to to");
@@ -480,7 +530,8 @@ public class TransactionService {
     }
 
     private Specification<Transaction> buildSpec(
-            Long userId,
+            List<Long> visibleUserIds,
+            Long viewerUserId,
             String type,
             LocalDateTime from,
             LocalDateTime to,
@@ -495,12 +546,9 @@ public class TransactionService {
             query.distinct(true);
             
             if (partnerId != null) {
-                predicates.add(cb.or(
-                        cb.equal(root.get("userId"), userId),
-                        cb.equal(root.get("userId"), partnerId)
-                ));
+                predicates.add(cb.equal(root.get("userId"), partnerId));
             } else {
-                predicates.add(cb.equal(root.get("userId"), userId));
+                predicates.add(root.get("userId").in(visibleUserIds));
             }
             
             predicates.add(cb.isFalse(root.get("isDeleted")));
@@ -527,7 +575,7 @@ public class TransactionService {
                 subquery.select(tagTransactionRoot.get("transactionId"));
                 subquery.where(
                         cb.equal(tagTransactionRoot.get("transactionId"), root.get("id")),
-                        cb.equal(tagTransactionRoot.get("userId"), userId),
+                        cb.equal(tagTransactionRoot.get("userId"), viewerUserId),
                         tagTransactionRoot.get("tagId").in(tagIds)
                 );
                 predicates.add(cb.exists(subquery));

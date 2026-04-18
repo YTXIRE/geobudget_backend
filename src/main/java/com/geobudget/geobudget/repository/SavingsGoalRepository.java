@@ -14,9 +14,13 @@ public interface SavingsGoalRepository extends JpaRepository<SavingsGoal, Long> 
 
     List<SavingsGoal> findByUserIdOrderByPriorityAscCreatedAtDesc(Long userId);
 
+    List<SavingsGoal> findByUserIdInOrderByPriorityAscCreatedAtDesc(List<Long> userIds);
+
     List<SavingsGoal> findByUserIdAndStatus(Long userId, SavingsGoal.GoalStatus status);
 
     Optional<SavingsGoal> findByIdAndUserId(Long id, Long userId);
+
+    Optional<SavingsGoal> findByIdAndUserIdIn(Long id, List<Long> userIds);
 
     @Query("SELECT g FROM SavingsGoal g WHERE g.userId = :userId AND g.status = 'ACTIVE' ORDER BY g.priority ASC")
     List<SavingsGoal> findActiveGoalsByUserId(@Param("userId") Long userId);

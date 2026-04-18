@@ -19,6 +19,9 @@ import java.util.List;
 public class SavingsGoalResponse {
 
     private Long id;
+    private Long userId;
+    private String ownerName;
+    private Boolean editable;
     private String name;
     private String description;
     private BigDecimal targetAmount;
@@ -59,12 +62,24 @@ public class SavingsGoalResponse {
     }
 
     public static SavingsGoalResponse fromEntity(SavingsGoal goal) {
-        return fromEntity(goal, null);
+        return fromEntity(goal, null, null, true);
     }
 
     public static SavingsGoalResponse fromEntity(SavingsGoal goal, GoalMilestone nextMilestone) {
+        return fromEntity(goal, nextMilestone, null, true);
+    }
+
+    public static SavingsGoalResponse fromEntity(
+            SavingsGoal goal,
+            GoalMilestone nextMilestone,
+            String ownerName,
+            boolean editable
+    ) {
         SavingsGoalResponseBuilder builder = SavingsGoalResponse.builder()
                 .id(goal.getId())
+                .userId(goal.getUserId())
+                .ownerName(ownerName)
+                .editable(editable)
                 .name(goal.getName())
                 .description(goal.getDescription())
                 .targetAmount(goal.getTargetAmount())

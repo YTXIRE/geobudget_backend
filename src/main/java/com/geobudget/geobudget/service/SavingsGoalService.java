@@ -5,10 +5,13 @@ import com.geobudget.geobudget.entity.Category;
 import com.geobudget.geobudget.entity.GoalContribution;
 import com.geobudget.geobudget.entity.GoalMilestone;
 import com.geobudget.geobudget.entity.SavingsGoal;
+import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.GoalContributionRepository;
 import com.geobudget.geobudget.repository.GoalMilestoneRepository;
+import com.geobudget.geobudget.repository.PartnerRepository;
 import com.geobudget.geobudget.repository.SavingsGoalRepository;
+import com.geobudget.geobudget.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,20 +36,30 @@ public class SavingsGoalService {
     private final GoalMilestoneRepository milestoneRepository;
     private final CategoryRepository categoryRepository;
     private final TransactionService transactionService;
+    private final PartnerRepository partnerRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public GoalsListResponse getGoalsByUser(Long userId) {
-        List<SavingsGoal> goals = goalRepository.findByUserIdOrderByPriorityAscCreatedAtDesc(userId);
+        List<Long> visibleUserIds = getVisibleUserIds(userId);
+        List<SavingsGoal> goals = goalRepository.findByUserIdInOrderByPriorityAscCreatedAtDesc(visibleUserIds);
         
         YearMonth currentMonth = YearMonth.now();
         LocalDate startOfMonth = currentMonth.atDay(1);
         LocalDate endOfMonth = currentMonth.atEndOfMonth();
-        BigDecimal thisMonthContributions = contributionRepository.sumAmountByUserIdAndDateRange(userId, startOfMonth, endOfMonth);
+        BigDecimal thisMonthContributions = visibleUserIds.stream()
+                .map(id -> contributionRepository.sumAmountByUserIdAndDateRange(id, startOfMonth, endOfMonth))
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         
         List<SavingsGoalResponse> goalResponses = goals.stream()
                 .map(goal -> {
                     Optional<GoalMilestone> nextMilestone = milestoneRepository.findNextMilestoneByGoalId(goal.getId());
-                    return SavingsGoalResponse.fromEntity(goal, nextMilestone.orElse(null));
+                    return SavingsGoalResponse.fromEntity(
+                            goal,
+                            nextMilestone.orElse(null),
+                            resolveOwnerName(goal.getUserId()),
+                            goal.getUserId().equals(userId));
                 })
                 .collect(Collectors.toList());
         
@@ -54,11 +67,17 @@ public class SavingsGoalService {
                 .map(SavingsGoal::getCurrentAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
-        BigDecimal totalTarget = goalRepository.sumTargetAmountByUserId(userId);
-        if (totalTarget == null) totalTarget = BigDecimal.ZERO;
-        
-        Long activeGoals = goalRepository.countActiveByUserId(userId);
-        Long completedGoals = goalRepository.countCompletedByUserId(userId);
+        BigDecimal totalTarget = goals.stream()
+                .filter(goal -> goal.getStatus() != SavingsGoal.GoalStatus.CANCELLED)
+                .map(SavingsGoal::getTargetAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Long activeGoals = goals.stream()
+                .filter(goal -> goal.getStatus() == SavingsGoal.GoalStatus.ACTIVE)
+                .count();
+        Long completedGoals = goals.stream()
+                .filter(goal -> goal.getStatus() == SavingsGoal.GoalStatus.COMPLETED)
+                .count();
         
         BigDecimal overallProgress = BigDecimal.ZERO;
         if (totalTarget.compareTo(BigDecimal.ZERO) > 0) {
@@ -83,11 +102,31 @@ public class SavingsGoalService {
 
     @Transactional(readOnly = true)
     public SavingsGoalResponse getGoalById(Long goalId, Long userId) {
-        SavingsGoal goal = goalRepository.findByIdAndUserId(goalId, userId)
+        SavingsGoal goal = goalRepository.findByIdAndUserIdIn(goalId, getVisibleUserIds(userId))
                 .orElseThrow(() -> new IllegalArgumentException("Цель не найдена"));
         
         Optional<GoalMilestone> nextMilestone = milestoneRepository.findNextMilestoneByGoalId(goalId);
-        return SavingsGoalResponse.fromEntity(goal, nextMilestone.orElse(null));
+        return SavingsGoalResponse.fromEntity(
+                goal,
+                nextMilestone.orElse(null),
+                resolveOwnerName(goal.getUserId()),
+                goal.getUserId().equals(userId));
+    }
+
+    private List<Long> getVisibleUserIds(Long userId) {
+        List<Long> userIds = new java.util.ArrayList<>();
+        userIds.add(userId);
+        userIds.addAll(partnerRepository.findAllAcceptedForUser(userId).stream()
+                .map(partner -> partner.getUserId().equals(userId) ? partner.getPartnerId() : partner.getUserId())
+                .distinct()
+                .toList());
+        return userIds;
+    }
+
+    private String resolveOwnerName(Long ownerId) {
+        return userRepository.findById(ownerId)
+                .map(User::getUsername)
+                .orElse("Пользователь");
     }
 
     @Transactional
@@ -162,7 +201,9 @@ public class SavingsGoalService {
 
     @Transactional
     public GoalContributionResponse contribute(Long goalId, Long userId, ContributeRequest request) {
-        SavingsGoal goal = goalRepository.findByIdAndUserId(goalId, userId)
+        SavingsGoal goal = goalRepository.findById(goalId)
+                .filter(existingGoal -> existingGoal.getUserId().equals(userId)
+                        || partnerRepository.existsAcceptedPartnership(userId, existingGoal.getUserId()))
                 .orElseThrow(() -> new IllegalArgumentException("Цель не найдена"));
         
         if (goal.getStatus() != SavingsGoal.GoalStatus.ACTIVE) {

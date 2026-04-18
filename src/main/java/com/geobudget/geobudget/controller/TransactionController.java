@@ -90,10 +90,11 @@ public class TransactionController {
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String country,
             @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false, defaultValue = "false") boolean includePartners,
             @PageableDefault(size = 20, sort = "occurredAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return ResponseEntity.ok(transactionService.getAll(
-                userDetails.getUserId(), type, from, to, categoryId, tagIds, city, country, partnerId, pageable));
+                userDetails.getUserId(), type, from, to, categoryId, tagIds, city, country, partnerId, includePartners, pageable));
     }
 
     @GetMapping("/{id}")
