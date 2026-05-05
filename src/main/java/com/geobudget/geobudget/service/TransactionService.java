@@ -21,10 +21,13 @@ import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.TransactionStatsProjection;
 import com.geobudget.geobudget.repository.TransactionSummaryProjection;
 import com.geobudget.geobudget.repository.UserRepository;
+import com.geobudget.geobudget.service.FcmService;
+import com.geobudget.geobudget.service.PartnerService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -51,6 +54,18 @@ public class TransactionService {
     private final PartnerRepository partnerRepository;
     private final TagRepository tagRepository;
     private final TagTransactionRepository tagTransactionRepository;
+    private FcmService fcmService;
+    private PartnerService partnerService;
+
+    @Autowired
+    public void setFcmService(FcmService fcmService) {
+        this.fcmService = fcmService;
+    }
+
+    @Autowired
+    public void setPartnerService(PartnerService partnerService) {
+        this.partnerService = partnerService;
+    }
 
     @Transactional
     public TransactionResponse create(Long userId, TransactionCreateRequest request) {
@@ -87,6 +102,8 @@ public class TransactionService {
                 tagTransactionRepository.save(tt);
             }
         }
+
+        notifyPartnersOfLargeExpense(userId, savedTransaction);
 
         return mapToResponse(savedTransaction, userId);
     }
@@ -591,5 +608,35 @@ public class TransactionService {
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
+    }
+
+    private void notifyPartnersOfLargeExpense(Long userId, Transaction transaction) {
+        if (fcmService == null || partnerService == null) return;
+        if (!"expense".equals(transaction.getType())) return;
+        
+        BigDecimal amount = transaction.getBaseAmount() != null 
+            ? transaction.getBaseAmount() 
+            : transaction.getAmount();
+        if (amount == null) return;
+        
+        BigDecimal threshold = new BigDecimal("10000");
+        if (amount.compareTo(threshold) < 0) return;
+        
+        List<Long> partnerIds = partnerRepository.findAllAcceptedForUser(userId).stream()
+            .map(p -> p.getUserId().equals(userId) ? p.getPartnerId() : p.getUserId())
+            .collect(Collectors.toList());
+        
+        User user = userRepository.findById(userId).orElse(null);
+        String userName = user != null ? user.getUsername() : "Пользователь";
+        
+        BigDecimal roundedAmount = amount.setScale(0, RoundingMode.HALF_UP);
+        
+        for (Long partnerId : partnerIds) {
+            fcmService.sendNotification(
+                partnerId,
+                "Крупная трата партнёра",
+                String.format("%s потратил %s", userName, roundedAmount)
+            );
+        }
     }
 }

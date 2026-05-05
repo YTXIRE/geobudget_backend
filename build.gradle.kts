@@ -43,6 +43,9 @@ dependencies {
 
 	// JWT
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+
+	// Firebase Admin (FCM)
+	implementation("com.google.firebase:firebase-admin:9.2.0")
 	implementation("io.jsonwebtoken:jjwt-impl:0.12.6")
 	implementation("io.jsonwebtoken:jjwt-jackson:0.12.6")
 

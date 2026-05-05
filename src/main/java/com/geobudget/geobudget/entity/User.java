@@ -65,4 +65,7 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
+
+    @Column(name = "fcm_token", length = 512)
+    private String fcmToken;
 }

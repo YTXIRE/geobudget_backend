@@ -1,15 +1,39 @@
-version: '3.8'
-
 services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-geobudget}
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-geouser}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-geopass}
+    volumes:
+      - geobudget_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME:-geouser} -d ${POSTGRES_DB:-geobudget}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   app:
-    image: localhost:5000/geobudget-backend:latest
-    ports:
-      - "8180:8180"
-    network_mode: host
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: geobudget-backend:local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     env_file:
       - .env
     environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5432/geobudget}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-geobudget}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-geouser}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-geopass}
-    restart: always
+      APP_MAIL_ENABLED: ${APP_MAIL_ENABLED:-false}
+      SPRING_APPLICATION_URL: ${SPRING_APPLICATION_URL:-http://localhost:8180}
+    ports:
+      - "${APP_PORT:-8180}:8180"
+
+volumes:
+  geobudget_pgdata:

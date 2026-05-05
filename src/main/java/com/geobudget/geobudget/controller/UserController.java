@@ -15,6 +15,7 @@ import com.geobudget.geobudget.dto.jwt.JwtAuthenticationDTO;
 import com.geobudget.geobudget.security.CustomUserDetails;
 import com.geobudget.geobudget.service.AuthService;
 import com.geobudget.geobudget.service.ConfirmationTokenService;
+import com.geobudget.geobudget.service.FcmService;
 import com.geobudget.geobudget.service.UserJwtService;
 import com.geobudget.geobudget.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -52,6 +54,7 @@ public class UserController {
     private final UserService userService;
     private final ConfirmationTokenService confirmationTokenService;
     private final ResourceLoader resourceLoader;
+    private final FcmService fcmService;
 
     @RegisterDoc
     @PostMapping("/register")
@@ -105,5 +108,22 @@ public class UserController {
     public ResponseEntity<JwtAuthenticationDTO> refreshToken() {
         String authHeader = request.getHeader("Authorization");
         return ResponseEntity.ok(userJwtService.refreshToken(authHeader));
+    }
+
+    @PostMapping("/fcm-token")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> saveFcmToken(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam String token
+    ) {
+        fcmService.saveToken(userDetails.getUserId(), token);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/fcm-token")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deleteFcmToken(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        fcmService.deleteToken(userDetails.getUserId());
+        return ResponseEntity.noContent().build();
     }
 }

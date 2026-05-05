@@ -14,6 +14,7 @@ import com.geobudget.geobudget.repository.TransactionRepository;
 import com.geobudget.geobudget.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,8 @@ public class PartnerService {
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final BudgetRepository budgetRepository;
+    @Autowired
+    private FcmService fcmService;
 
     @Transactional(readOnly = true)
     public List<PartnerDto> getAcceptedPartners(Long userId) {
@@ -99,7 +102,11 @@ public class PartnerService {
         }
 
         invitation.setStatus(Partner.STATUS_ACCEPTED);
-        return mapToDto(partnerRepository.save(invitation));
+        partnerRepository.save(invitation);
+        
+        notifyPartnerAccepted(userId, partnerId);
+        
+        return mapToDto(invitation);
     }
 
     @Transactional
@@ -287,5 +294,31 @@ public class PartnerService {
                 .createdAt(partner.getCreatedAt())
                 .updatedAt(partner.getUpdatedAt())
                 .build();
+    }
+
+    private void notifyPartnerAccepted(Long userId, Long partnerId) {
+        if (fcmService == null) return;
+        
+        User user = userRepository.findById(userId).orElse(null);
+        String userName = user != null ? user.getUsername() : "Пользователь";
+        
+        fcmService.sendNotification(
+            partnerId,
+            "Новый партнёр",
+            "$userName принял ваш запрос в партнёры"
+        );
+    }
+
+    private void notifyLargeExpense(Long userId, Long partnerId, BigDecimal amount) {
+        if (fcmService == null) return;
+        
+        User user = userRepository.findById(userId).orElse(null);
+        String userName = user != null ? user.getUsername() : "Пользователь";
+        
+        fcmService.sendNotification(
+            partnerId,
+            "Крупная трата партнёра",
+            "$userName потратил ${amount.setScale(0, java.math.RoundingMode.HALF_UP)}"
+        );
     }
 }
