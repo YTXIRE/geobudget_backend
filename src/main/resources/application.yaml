@@ -5,12 +5,20 @@ spring:
   application:
     name: geobudget
 #    url: https://backend.xire.ru
-    url: http://localhost:8180
+    url: ${SPRING_APPLICATION_URL:http://localhost:8180}
+
+  docker:
+    compose:
+      file: compose.dev.yml
+      lifecycle-management: start-only
+      arguments:
+        - "--project-name"
+        - "geobudget-dev"
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/geobudget
-    username: geouser
-    password: geopass
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/geobudget}
+    username: ${SPRING_DATASOURCE_USERNAME:geouser}
+    password: ${SPRING_DATASOURCE_PASSWORD:geopass}
     driver-class-name: org.postgresql.Driver
 
   mail:
@@ -87,4 +95,3 @@ management:
   health:
     mail:
       enabled: false
-

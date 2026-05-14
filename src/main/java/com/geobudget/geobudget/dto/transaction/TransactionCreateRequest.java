@@ -74,5 +74,7 @@ public class TransactionCreateRequest {
     @DecimalMin(value = "0.01", message = "baseAmount must be greater than 0")
     private BigDecimal baseAmount;
 
+    private Long receiptId;
+
     private List<Long> tagIds;
 }

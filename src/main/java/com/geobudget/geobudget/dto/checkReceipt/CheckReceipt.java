@@ -31,6 +31,7 @@ public class CheckReceipt {
     private String selectedCategorySource;
     private String matchConfidence;
     private long timestamp;
+    private Long receiptId;
 
     @JsonProperty("data")
     public void setData(DataJson data) {

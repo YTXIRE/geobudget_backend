@@ -2,9 +2,9 @@
 
 ## Запуск PostgreSQL в Docker (с `.env`)
 
-Проект ожидает PostgreSQL на `localhost:5432` и использует значения из `.env`:
+Проект ожидает PostgreSQL на `localhost:5433` и использует значения из `.env`:
 
-- `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/geobudget`
+- `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/geobudget`
 - `SPRING_DATASOURCE_USERNAME=geouser`
 - `SPRING_DATASOURCE_PASSWORD=geopass`
 
@@ -18,7 +18,7 @@ docker run -d \
   -e POSTGRES_DB=geobudget \
   -e POSTGRES_USER=geouser \
   -e POSTGRES_PASSWORD=geopass \
-  -p 5432:5432 \
+  -p 5433:5432 \
   -v geobudget_pgdata:/var/lib/postgresql/data \
   postgres:16
 ```
@@ -38,6 +38,12 @@ docker rm geobudget-postgres
 ```
 
 После запуска backend Liquibase автоматически создаст схему и заполнит стартовые данные.
+
+## Локальный запуск из IDE
+
+Если приложение запускается локально через IntelliJ/`bootRun`, Spring Boot сам поднимет `compose.dev.yml` и стартует PostgreSQL на `localhost:5433`.
+
+Если Docker Desktop выключен, backend не сможет подключиться к БД и упадёт на инициализации Liquibase.
 
 ## Geo API контракт
 

@@ -10,11 +10,13 @@ import com.geobudget.geobudget.dto.transaction.TransactionUpdateRequest;
 import com.geobudget.geobudget.dto.geoCompany.CountryAndCity;
 import com.geobudget.geobudget.dto.fx.FxRateResponse;
 import com.geobudget.geobudget.entity.Category;
+import com.geobudget.geobudget.entity.Receipt;
 import com.geobudget.geobudget.entity.TagTransaction;
 import com.geobudget.geobudget.entity.Transaction;
 import com.geobudget.geobudget.entity.User;
 import com.geobudget.geobudget.repository.CategoryRepository;
 import com.geobudget.geobudget.repository.PartnerRepository;
+import com.geobudget.geobudget.repository.ReceiptRepository;
 import com.geobudget.geobudget.repository.TagRepository;
 import com.geobudget.geobudget.repository.TagTransactionRepository;
 import com.geobudget.geobudget.repository.TransactionRepository;
@@ -52,6 +54,7 @@ public class TransactionService {
     private final UserRepository userRepository;
     private final FxRateService fxRateService;
     private final PartnerRepository partnerRepository;
+    private final ReceiptRepository receiptRepository;
     private final TagRepository tagRepository;
     private final TagTransactionRepository tagTransactionRepository;
     private FcmService fcmService;
@@ -312,6 +315,7 @@ public class TransactionService {
         transaction.setPlaceId(request.getPlaceId());
         transaction.setPlaceName(request.getPlaceName());
         transaction.setLocationSource(request.getLocationSource());
+        transaction.setReceipt(resolveReceipt(request.getReceiptId()));
         applyCurrencyFields(
                 transaction,
                 request.getAmount(),
@@ -350,6 +354,15 @@ public class TransactionService {
         } catch (Exception e) {
             log.warn("TransactionService.enrichLocationFromIp: failed to resolve IP location", e);
         }
+    }
+
+    private Receipt resolveReceipt(Long receiptId) {
+        if (receiptId == null) {
+            return null;
+        }
+
+        return receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new EntityNotFoundException("Receipt not found"));
     }
 
     private void applyExtraFields(Transaction transaction, TransactionUpdateRequest request, User user) {
@@ -518,6 +531,17 @@ public class TransactionService {
                 .originalCurrency(transaction.getOriginalCurrency())
                 .rateToBase(transaction.getRateToBase())
                 .baseAmount(transaction.getBaseAmount())
+                .receiptId(transaction.getReceipt() != null ? transaction.getReceipt().getId() : null)
+                .receiptItems(transaction.getReceipt() == null || transaction.getReceipt().getItems() == null
+                        ? java.util.List.of()
+                        : transaction.getReceipt().getItems().stream()
+                        .map(item -> TransactionResponse.ReceiptItemDto.builder()
+                                .name(item.getName())
+                                .quantity(item.getQuantity())
+                                .price(item.getPrice())
+                                .amount(item.getAmount())
+                                .build())
+                        .toList())
                 .tags(tags)
                 .createdAt(transaction.getCreatedAt())
                 .updatedAt(transaction.getUpdatedAt())

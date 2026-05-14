@@ -37,7 +37,20 @@ public class TransactionResponse {
     private String originalCurrency;
     private BigDecimal rateToBase;
     private BigDecimal baseAmount;
+    private Long receiptId;
+    private List<ReceiptItemDto> receiptItems;
     private List<TagDto> tags;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReceiptItemDto {
+        private String name;
+        private Double quantity;
+        private Double price;
+        private Double amount;
+    }
 }

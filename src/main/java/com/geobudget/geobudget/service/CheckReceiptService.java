@@ -97,11 +97,13 @@ public class CheckReceiptService {
                     dataJson.setCategory(categoryDto);
                     applyMatchResult(dataJson, resolveCategoryMatch(userId, dataJson.getInn(), categoryDto));
 
-                    String message = save(dataJson);
+                    Receipt savedReceipt = save(dataJson);
 
-                    if (message != null) {
-                        throw new ReceiptExisting(message);
+                    if (savedReceipt == null) {
+                        throw new ReceiptExisting("Такой чек уже добавлен");
                     }
+
+                    dataJson.setReceiptId(savedReceipt.getId());
 
                     return dataJson;
                 }
@@ -210,13 +212,13 @@ public class CheckReceiptService {
         return value == null ? "" : value.trim().toLowerCase().replaceAll("\\s+", " ");
     }
 
-    private String save(CheckReceipt dto) {
+    private Receipt save(CheckReceipt dto) {
         boolean exists = receiptRepository
                 .findByTimestampAndInnAndTotalSum(dto.getTimestamp(), dto.getInn(), dto.getTotalSum())
                 .isPresent();
 
         if (exists) {
-            return "Такой чек уже добавлен";
+            return null;
         }
 
         Receipt receipt = new Receipt();
@@ -264,9 +266,7 @@ public class CheckReceiptService {
 
         log.info("Items: {}", items);
 
-        receiptRepository.save(receipt);
-
-        return null;
+        return receiptRepository.save(receipt);
     }
 
     private record MatchResult(CategoryDto category, String source, String confidence) {

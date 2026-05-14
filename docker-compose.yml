@@ -1,11 +1,14 @@
 services:
   postgres:
     image: postgres:16
+    container_name: geobudget-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-geobudget}
       POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-geouser}
       POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-geopass}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - geobudget_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,9 +19,15 @@ services:
       start_period: 10s
 
   app:
+    container_name: geobudget-backend
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        JWT_SECRET: ${JWT_SECRET:-}
+        DADATA_API_KEY: ${DADATA_API_KEY:-}
+        DADATA_X_SECRET: ${DADATA_X_SECRET:-}
+        PROVERKACHECKA_API_KEY: ${PROVERKACHECKA_API_KEY:-}
     image: geobudget-backend:local
     restart: unless-stopped
     depends_on:

@@ -87,6 +87,10 @@ public class Transaction {
     @Column(name = "base_amount", precision = 14, scale = 2)
     private BigDecimal baseAmount;
 
+    @ManyToOne
+    @JoinColumn(name = "receipt_id")
+    private Receipt receipt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

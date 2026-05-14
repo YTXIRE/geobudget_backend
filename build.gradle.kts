@@ -76,6 +76,7 @@ dependencies {
 
 	// Devtools
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
+	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 
 	// Database
 	runtimeOnly("org.postgresql:postgresql")

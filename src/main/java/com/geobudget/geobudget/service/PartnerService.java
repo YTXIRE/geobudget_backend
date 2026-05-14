@@ -36,21 +36,21 @@ public class PartnerService {
     @Transactional(readOnly = true)
     public List<PartnerDto> getAcceptedPartners(Long userId) {
         return partnerRepository.findAllAcceptedForUser(userId).stream()
-                .map(this::mapToDto)
+                .map(partner -> mapToDto(partner, userId))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PartnerDto> getPendingInvitations(Long userId) {
         return partnerRepository.findPendingInvitations(userId).stream()
-                .map(this::mapToDto)
+                .map(partner -> mapToDto(partner, userId))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PartnerDto> getPendingIncoming(Long userId) {
         return partnerRepository.findPendingIncoming(userId).stream()
-                .map(this::mapToDto)
+                .map(partner -> mapToDto(partner, userId))
                 .collect(Collectors.toList());
     }
 
@@ -75,7 +75,7 @@ public class PartnerService {
             }
             if (existing.getStatus().equals(Partner.STATUS_REJECTED)) {
                 existing.setStatus(Partner.STATUS_PENDING);
-                return mapToDto(partnerRepository.save(existing));
+                return mapToDto(partnerRepository.save(existing), userId);
             }
         }
 
@@ -85,7 +85,7 @@ public class PartnerService {
                 .status(Partner.STATUS_PENDING)
                 .build();
 
-        return mapToDto(partnerRepository.save(partnerEntity));
+        return mapToDto(partnerRepository.save(partnerEntity), userId);
     }
 
     @Transactional
@@ -106,7 +106,7 @@ public class PartnerService {
         
         notifyPartnerAccepted(userId, partnerId);
         
-        return mapToDto(invitation);
+        return mapToDto(invitation, userId);
     }
 
     @Transactional
@@ -119,7 +119,7 @@ public class PartnerService {
         }
 
         invitation.setStatus(Partner.STATUS_REJECTED);
-        return mapToDto(partnerRepository.save(invitation));
+        return mapToDto(partnerRepository.save(invitation), userId);
     }
 
     @Transactional
@@ -274,19 +274,17 @@ public class PartnerService {
         throw new IllegalArgumentException("Email or phone is required");
     }
 
-    private PartnerDto mapToDto(Partner partner) {
-        // partnership.userId = creator = the PARTNER
-        // partnership.partnerId = invited = current user
-        // So partner = userId
-        Long partnerId = partner.getUserId();
-        
-        // Load actual partner data from Users table
-        User partnerUser = userRepository.findById(partnerId).orElse(null);
+    private PartnerDto mapToDto(Partner partner, Long currentUserId) {
+        Long counterpartUserId = Objects.equals(partner.getUserId(), currentUserId)
+                ? partner.getPartnerId()
+                : partner.getUserId();
+
+        User partnerUser = userRepository.findById(counterpartUserId).orElse(null);
 
         return PartnerDto.builder()
                 .id(partner.getId())
                 .userId(partner.getUserId())
-                .partnerId(partner.getPartnerId())
+                .partnerId(counterpartUserId)
                 .partnerUsername(partnerUser != null ? partnerUser.getUsername() : null)
                 .partnerEmail(partnerUser != null ? partnerUser.getEmail() : null)
                 .partnerPhone(partnerUser != null ? partnerUser.getPhone() : null)
