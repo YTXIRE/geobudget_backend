@@ -329,7 +329,12 @@ public class TransactionService {
     }
 
     private void enrichLocationFromIp(TransactionCreateRequest request, HttpServletRequest httpRequest) {
-        if (httpRequest == null || !isLocationMissing(request)) {
+        if (httpRequest == null) {
+            return;
+        }
+
+        if (request.getLatitude() != null && request.getLongitude() != null
+                && !isBlank(request.getCity()) && !isBlank(request.getCountry())) {
             return;
         }
 
@@ -339,18 +344,29 @@ public class TransactionService {
                 return;
             }
 
-            if (location.getLatitude() != null) {
+            if (request.getLatitude() == null && location.getLatitude() != null) {
                 request.setLatitude(BigDecimal.valueOf(location.getLatitude()));
             }
 
-            if (location.getLongitude() != null) {
+            if (request.getLongitude() == null && location.getLongitude() != null) {
                 request.setLongitude(BigDecimal.valueOf(location.getLongitude()));
             }
 
-            request.setCity(location.getCity());
-            request.setCountry(location.getCountry());
-            request.setRegion(location.getRegion());
-            request.setLocationSource("ip");
+            if (isBlank(request.getCity())) {
+                request.setCity(location.getCity());
+            }
+
+            if (isBlank(request.getCountry())) {
+                request.setCountry(location.getCountry());
+            }
+
+            if (isBlank(request.getRegion())) {
+                request.setRegion(location.getRegion());
+            }
+
+            if (isBlank(request.getLocationSource())) {
+                request.setLocationSource("ip");
+            }
         } catch (Exception e) {
             log.warn("TransactionService.enrichLocationFromIp: failed to resolve IP location", e);
         }
@@ -438,15 +454,6 @@ public class TransactionService {
         if ((latitude == null) != (longitude == null)) {
             throw new IllegalArgumentException("latitude and longitude must be provided together");
         }
-    }
-
-    private boolean isLocationMissing(TransactionCreateRequest request) {
-        return request.getLatitude() == null
-                && request.getLongitude() == null
-                && isBlank(request.getCity())
-                && isBlank(request.getCountry())
-                && isBlank(request.getRegion())
-                && isBlank(request.getPlaceId());
     }
 
     private boolean isBlank(String value) {
